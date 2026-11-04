@@ -1,5 +1,5 @@
 "use strict";
-const UI_VER=33; /* ekran hissəsinin versiyası — hər yeniləmədə artırılır */
+const UI_VER=34; /* ekran hissəsinin versiyası — hər yeniləmədə artırılır */
 /* ================= HİK-təşkilat — Həmkarlar İttifaqı rayon komitəsinin təşkilati işi ================= */
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -322,11 +322,72 @@ function bindCal(){const y=calYear();
     $("#calOk").onclick=()=>{if(!guard())return;DB.calEdits=DB.calEdits||{};DB.calEdits[iso]={t:$("#calT").value,n:normName($("#calN").value)};done("Yadda saxlandı")};
     dlg.showModal()})}
 
+/* ================= Maaş və 2% (İlk təşkilatlar bölməsi) =================
+   Hər təşkilat və ay üçün maaşa köçürülən cəmi məbləğ yazılır, həmkarlara köçürülən 2% avtomatik hesablanır.
+   Saxlanılan yalnız maaş məbləğidir: DB.dues["YYYY-MM"][orgId]. Hesablama qəpiklə aparılır, cəm yuvarlaqlaşdırılmış 2%-lərin cəmidir. */
+const DUES_RATE=2;
+const duesPct=v=>Math.round(Math.round(v*100)*DUES_RATE/100)/100;
+const duesMoney=v=>{const[a,b]=Math.abs(v).toFixed(2).split(".");return(v<0?"-":"")+a.replace(/\B(?=(\d{3})+$)/g," ")+","+b};
+function duesParse(s){let t=String(s??"").replace(/[\s ]/g,"");if(!t)return null;
+  const c=t.lastIndexOf(","),d=t.lastIndexOf(".");
+  if(c>=0&&d>=0)t=c>d?t.replace(/\./g,"").replace(",","."):t.replace(/,/g,"");else t=t.replace(",",".");
+  if(!/^\d+(\.\d+)?$/.test(t))return NaN;return Math.round(+t*100)/100}
+const duesCap=s=>s[0].toLocaleUpperCase("az")+s.slice(1);
+const duesState=()=>{UI.dues=UI.dues||{m:todayISO().slice(0,7),view:"m"};return UI.dues};
+/* fəal təşkilatlar, rayon komitəsi və məbləği yazılmış digər (o cümlədən silinmiş) təşkilatlar */
+function duesRows(years){const D=DB.dues||{},used=new Set();
+  for(const[k,o]of Object.entries(D))if(years.some(y=>k.startsWith(y)))Object.keys(o).forEach(id=>used.add(id));
+  const rows=DB.orgs.filter(o=>orgActive(o)||isRK(o)||used.has(o.id)).map(o=>({id:o.id,name:o.name,num:!isRK(o)}));
+  for(const id of used)if(!rows.some(r=>r.id===id))rows.push({id,name:"(silinmiş təşkilat)",num:false});
+  return rows}
+const duesGet=(m,id)=>{const v=(DB.dues||{})[m]?.[id];return v==null?null:v};
+function duesHTML(){const S=duesState(),y=S.m.slice(0,4),mi=+S.m.slice(5)-1,now=+todayISO().slice(0,4);
+  const yrs=[...new Set([now-1,now,now+1,+y,...Object.keys(DB.dues||{}).map(k=>+k.slice(0,4))])].sort((a,b)=>a-b);
+  const tools=`<div class="reg-tools dues-tools">${S.view==="m"?`<button class="btn" type="button" id="dPrev" aria-label="Əvvəlki ay">‹</button><label>Ay <select id="dMon">${MONTHS.map((n,i)=>`<option value="${i}"${i===mi?" selected":""}>${duesCap(n)}</option>`).join("")}</select></label>`:""}
+    <label>İl <select id="dYear">${yrs.map(v=>`<option${v===+y?" selected":""}>${v}</option>`).join("")}</select></label>${S.view==="m"?`<button class="btn" type="button" id="dNext" aria-label="Növbəti ay">›</button>`:""}
+    <button class="btn" type="button" id="dView">${S.view==="m"?"İl üzrə cədvəl":"Ay üzrə daxil et"}</button><button class="btn" type="button" id="dXl">Excel-ə çıxar</button></div>`;
+  if(S.view==="y"){const rows=duesRows([y]),ms=MONTHS.map((_,i)=>`${y}-${String(i+1).padStart(2,"0")}`);let n=0;
+    const cell=(v,c="")=>`<td class="n${c}">${v==null?"":duesMoney(v)}</td>`;
+    const tot=ms.map(m=>rows.reduce((s,r)=>{const v=duesGet(m,r.id);return v==null?s:s+Math.round(duesPct(v)*100)},0)/100);
+    return`<section class="card printable" data-ptitle="Həmkarlara 2% — ${y}"><h2>${y}-ci il: həmkarlara köçürülən ${DUES_RATE}%</h2>${tools}
+      <div class="dues-wrap"><table class="reg dues-y"><thead><tr><th>Təşkilat</th>${MONTHS.map((m,i)=>`<th class="n"><button type="button" class="dues-m" data-m="${ms[i]}" title="${duesCap(m)} ayını aç">${duesCap(m).slice(0,3)}</button></th>`).join("")}<th class="n">Cəmi</th></tr></thead>
+      <tbody>${rows.map(r=>{const vals=ms.map(m=>{const v=duesGet(m,r.id);return v==null?null:duesPct(v)});const sum=vals.reduce((s,v)=>s+Math.round((v||0)*100),0)/100;return`<tr><td>${r.num?++n+". ":""}${esc(r.name)}</td>${vals.map(v=>cell(v)).join("")}${cell(sum,"  b")}</tr>`}).join("")}
+      <tr class="dues-t"><td>Cəmi</td>${tot.map(v=>cell(v)).join("")}${cell(tot.reduce((s,v)=>s+Math.round(v*100),0)/100)}</tr></tbody></table></div>
+      <p class="hint">Məbləğlər ${DUES_RATE}%-dir. Maaş məbləğini yazmaq üçün ayın adına klikləyin.</p></section>`}
+  const rows=duesRows([S.m]);let n=0,tS=0,tP=0;
+  const body=rows.map(r=>{const v=duesGet(S.m,r.id),p=v==null?null:duesPct(v);if(v!=null){tS+=Math.round(v*100);tP+=Math.round(p*100)}
+    return`<tr data-org="${r.id}"><td>${r.num?++n:""}</td><td>${esc(r.name)}</td><td class="n"><input class="dues-in" inputmode="decimal" autocomplete="off" aria-label="${esc(r.name)}: maaş üçün köçürülən cəmi" value="${v==null?"":duesMoney(v)}" placeholder="0,00"></td><td class="n dues-p">${p==null?"":duesMoney(p)}</td></tr>`}).join("");
+  return`<section class="card printable" data-ptitle="Maaş və ${DUES_RATE}% — ${duesCap(MONTHS[mi])} ${y}"><h2>${duesCap(MONTHS[mi])} ${y}: maaş və həmkarlara ${DUES_RATE}%</h2>${tools}
+    <div class="dues-wrap"><table class="reg dues-m-t"><thead><tr><th>№</th><th>Təşkilat</th><th class="n">Maaş üçün köçürülən cəmi, ₼</th><th class="n">Həmkarlara ${DUES_RATE}%, ₼</th></tr></thead>
+    <tbody>${body}<tr class="dues-t"><td></td><td>Cəmi</td><td class="n" id="dTS">${duesMoney(tS/100)}</td><td class="n" id="dTP">${duesMoney(tP/100)}</td></tr></tbody></table></div>
+    <p class="hint">Məbləği yazıb Enter basın: ${DUES_RATE}% özü hesablanır və yadda qalır. Xananı boşaltsanız, qeyd silinir.</p></section>`}
+function bindDues(){const S=duesState(),go=m=>{S.m=m;render()};
+  const shift=d=>{const dt=new Date(Date.UTC(+S.m.slice(0,4),+S.m.slice(5)-1+d,1));go(dt.toISOString().slice(0,7))};
+  $("#dPrev")?.addEventListener("click",()=>shift(-1));$("#dNext")?.addEventListener("click",()=>shift(1));
+  $("#dMon")?.addEventListener("change",e=>go(`${S.m.slice(0,4)}-${String(+e.target.value+1).padStart(2,"0")}`));
+  $("#dYear").onchange=e=>go(`${e.target.value}-${S.m.slice(5)}`);
+  $("#dView").onclick=()=>{S.view=S.view==="m"?"y":"m";render()};
+  $$("#view .dues-m").forEach(b=>b.onclick=()=>{S.view="m";go(b.dataset.m)});
+  $("#dXl").onclick=()=>{const y=S.m.slice(0,4),rows=duesRows([y]),ms=MONTHS.map((_,i)=>`${y}-${String(i+1).padStart(2,"0")}`),hd=["Təşkilat",...MONTHS.map(duesCap),"Cəmi"];
+    const sheet=(name,title,f)=>{const R=rows.map(r=>{const a=ms.map(m=>{const v=duesGet(m,r.id);return v==null?"":f(v)});return[r.name,...a,a.reduce((s,v)=>s+Math.round((v||0)*100),0)/100]});
+      const T=["Cəmi",...hd.slice(1).map((_,i)=>R.reduce((s,x)=>s+Math.round((x[i+1]||0)*100),0)/100)];return{name,title,head:hd,rows:[...R,T],w:[40,...hd.slice(1).map(()=>11)]}};
+    exportSheets([sheet(`${DUES_RATE}% həmkarlara`,`${y}: həmkarlara köçürülən ${DUES_RATE}%, manat`,duesPct),sheet("Maaş",`${y}: maaş üçün köçürülən cəmi, manat`,v=>v)],`Maaş və ${DUES_RATE}% ${y}`)};
+  const totals=()=>{let a=0,b=0;$$("#view .dues-in").forEach(i=>{const v=duesParse(i.value);if(v!=null&&!isNaN(v)){a+=Math.round(v*100);b+=Math.round(duesPct(v)*100)}});$("#dTS").textContent=duesMoney(a/100);$("#dTP").textContent=duesMoney(b/100)};
+  $$("#view .dues-in").forEach((inp,idx,all)=>{const tr=inp.closest("tr"),id=tr.dataset.org,pc=tr.querySelector(".dues-p");
+    inp.oninput=()=>{const v=duesParse(inp.value),bad=v!==null&&isNaN(v);inp.classList.toggle("bad",bad);pc.textContent=v==null||bad?"":duesMoney(duesPct(v));totals()};
+    inp.onchange=()=>{const v=duesParse(inp.value),old=duesGet(S.m,id);
+      if(v!==null&&isNaN(v)){toast("Məbləği rəqəmlə yazın, məsələn: 12 345,67");inp.classList.add("bad");return}
+      const back=()=>{inp.value=old==null?"":duesMoney(old);inp.oninput()};
+      if(!guard()){back();return}
+      DB.dues=DB.dues||{};if(v==null){if(DB.dues[S.m]){delete DB.dues[S.m][id];if(!Object.keys(DB.dues[S.m]).length)delete DB.dues[S.m]}}else(DB.dues[S.m]=DB.dues[S.m]||{})[id]=v;
+      if(!persist())return;inp.value=v==null?"":duesMoney(v);toast(v==null?"Qeyd silindi":`Yadda saxlandı: ${DUES_RATE}% = ${duesMoney(duesPct(v))} ₼`)};
+    inp.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();inp.blur();all[idx+1]?.focus();all[idx+1]?.select()}}})}
+
 /* ================= render ================= */
 const TABS=[["home","Ümumi"],["mem","Üzvlər"],["bodies","Komitə və komissiyalar"],["orgs","İlk təşkilatlar"],["contracts","Müqavilələr"],["events","Tədbirlər planı"],["prots","Protokollar"],["settings","Parametrlər"]];
 /* Alt bölmələr: səhifənin yuxarısında düymə kimi */
-const SUB={mem:[["mem","Üzvlər"],["vet","Veteran, Qazi, Şəhid ailəsi"]],prots:[["prots","Protokollar"],["plens","Plenumlar"]],events:[["events","Tədbirlər planı"],["cal","İstehsalat təqvimi"]]};
-const PARENT={vet:"mem",plens:"prots",cal:"events"};
+const SUB={orgs:[["orgs","İlk təşkilatlar"],["dues","Maaş və 2%"]],mem:[["mem","Üzvlər"],["vet","Veteran, Qazi, Şəhid ailəsi"]],prots:[["prots","Protokollar"],["plens","Plenumlar"]],events:[["events","Tədbirlər planı"],["cal","İstehsalat təqvimi"]]};
+const PARENT={dues:"orgs",vet:"mem",plens:"prots",cal:"events"};
 function subNav(cnt){const g=SUB[PARENT[UI.tab]||UI.tab];if(!g)return"";
   return`<div class="subnav" role="tablist">${g.map(([k,l])=>`<button class="subtab" role="tab" data-tab="${k}" aria-selected="${UI.tab===k}">${l}${cnt[k]?` <span class="n">${cnt[k]}</span>`:""}</button>`).join("")}</div>`}
 function render(){
@@ -336,9 +397,9 @@ function render(){
   $("#tabs").innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" data-tab="${k}" aria-selected="${UI.tab===k||PARENT[UI.tab]===k}">${l}${cnt[k]?`<span class="n">${cnt[k]}</span>`:""}</button>`).join("");
   licBar();
   const v=$("#view");
-  const R={home:homeHTML,mem:memHTML,bodies:bodiesHTML,vet:vetHTML,orgs:()=>regHTML("orgs"),events:()=>regHTML("events"),prots:()=>regHTML("prots"),plens:()=>regHTML("plens"),contracts:()=>regHTML("contracts"),cal:calHTML,settings:settingsHTML}[UI.tab];
+  const R={home:homeHTML,mem:memHTML,bodies:bodiesHTML,vet:vetHTML,orgs:()=>regHTML("orgs"),events:()=>regHTML("events"),prots:()=>regHTML("prots"),plens:()=>regHTML("plens"),contracts:()=>regHTML("contracts"),cal:calHTML,dues:duesHTML,settings:settingsHTML}[UI.tab];
   v.innerHTML=subNav(cnt)+R();
-  ({home:bindHome,mem:bindMem,bodies:bindBodies,vet:bindVet,orgs:()=>bindReg("orgs"),events:()=>bindReg("events"),prots:()=>bindReg("prots"),plens:()=>bindReg("plens"),contracts:()=>bindReg("contracts"),cal:bindCal,settings:bindSettings})[UI.tab]();
+  ({home:bindHome,mem:bindMem,bodies:bindBodies,vet:bindVet,orgs:()=>bindReg("orgs"),events:()=>bindReg("events"),prots:()=>bindReg("prots"),plens:()=>bindReg("plens"),contracts:()=>bindReg("contracts"),cal:bindCal,dues:bindDues,settings:bindSettings})[UI.tab]();
   addPrintBtns()}
 /* lisenziya: qırmızı zolaq (yoxdur/bitib), sarı zolaq (30 gündən az qalıb), açılışda aktivləşdirmə pəncərəsi */
 const licDays=()=>LIC.until&&LIC.today?Math.round((Date.parse(LIC.until)-Date.parse(LIC.today))/864e5):null;
