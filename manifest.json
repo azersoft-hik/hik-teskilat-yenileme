@@ -1,0 +1,57 @@
+{
+ "product": "hik-teskilat",
+ "ui": 28,
+ "minMain": 1,
+ "files": [
+  {
+   "path": "index.html",
+   "size": 28390,
+   "sha256": "6c66fd310e79b592fc5e10b531b7dc37af1fce9e7d420744b82cadd53cc69df8"
+  },
+  {
+   "path": "app.js",
+   "size": 142468,
+   "sha256": "6776531a947d1f0d8d23834beee7fff71854c32be78ce205d80f6d6678d88066"
+  },
+  {
+   "path": "autofill.js",
+   "size": 18567,
+   "sha256": "c8685837a6ad4caabb0eb95dc40e21e7468a554499dd12447d35d24ac79ded2e"
+  },
+  {
+   "path": "icon.png",
+   "size": 276754,
+   "sha256": "92af7505952fc7a0f3edd1d51f7463c5f0e1b6a6368d07f47aec2a1cb6b04207"
+  },
+  {
+   "path": "logo.png",
+   "size": 158747,
+   "sha256": "8b9f3a2954973df752edf202379fe1ac7de9c0896123c7d3d59d1aea2ea3baf1"
+  },
+  {
+   "path": "xlsx.full.min.js",
+   "size": 881727,
+   "sha256": "c9506197caf809a075b6dee1da0d36fb19da7158ffe8a88e7b0c96c5d8623c99"
+  },
+  {
+   "path": "pdf.min.js",
+   "size": 455474,
+   "sha256": "8c042ad949bdd354814ce596f85d946399d9099e9865d99422d927b0d1a99a32"
+  },
+  {
+   "path": "pdf.worker.min.js",
+   "size": 1262583,
+   "sha256": "9ff1f96d44b9d9e4f29b543079a72ebb7c2ce231f53014102312a71ec6a8f112"
+  },
+  {
+   "path": "ocr/aze.js",
+   "size": 4699752,
+   "sha256": "63a44db6ef66af92e6c3c3e6a3818516b79e367b6ba88a50f3754bd15d4e6a29"
+  },
+  {
+   "path": "ocr/tesseract-core-lstm.wasm.js",
+   "size": 3938276,
+   "sha256": "50ec33088c93e69135b09917072c1b2c8cb77eb256946f16723cf6a83c7f8e49"
+  }
+ ]
+}
