@@ -1,5 +1,5 @@
 "use strict";
-const UI_VER=34; /* ekran hissəsinin versiyası — hər yeniləmədə artırılır */
+const UI_VER=35; /* ekran hissəsinin versiyası — hər yeniləmədə artırılır */
 /* ================= HİK-təşkilat — Həmkarlar İttifaqı rayon komitəsinin təşkilati işi ================= */
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -141,6 +141,9 @@ const STATUSES=["Veteran","Qazi","Şəhid ailəsi","Əlil","Müharibə iştirak�
 /* «Statusu» xanasında bir neçə status ola bilər: «Qazi, ilk HİT Sədri» */
 const stLow=s=>String(s||"").trim().toLocaleLowerCase("az");
 const statusParts=st=>{const seen=new Set();return String(st||"").split(/[,;\/]+/).map(x=>x.trim()).filter(Boolean).map(p=>STATUSES.find(s=>stLow(s)===stLow(p))||p).filter(p=>{const k=stLow(p);if(seen.has(k))return false;seen.add(k);return true})};
+/* ilk təşkilatın sədri: kartda əl ilə yazılıbsa o, yoxdursa üzvlərdən «ilk HİT Sədri» statusu olanlar */
+const isOrgChair=m=>statusParts(m.status).some(p=>/h[iı]t\s*sədr/.test(stLow(p)));
+const orgChair=o=>o.chair||active().filter(m=>isOrgChair(m)&&memOrg(m)?.id===o.id).map(m=>m.name).join(", ");
 const statusOthers=(st,cur)=>statusParts(st).filter(p=>stLow(p)!==stLow(cur));
 function bodiesOf(m){const k=nkey(m.name),r=[];for(const b of DB.bodies)for(const p of b.people)if(nkey(p.name)===k)r.push({b,p});return r}
 /* Təhsil qısa: «Ali», «Orta ixtisas», «Ümumi təhsil», «Kollec», «İlk peşə» … (mətnin vergülə qədər hissəsi) */
@@ -787,17 +790,17 @@ function yearsDays(a,b){return Math.round((Date.parse(b)-Date.parse(a))/864e5)}
 const EV_ST=["Planlaşdırılıb","İcra olunub","Təxirə salınıb","Ləğv edilib"];
 const REG={
   orgs:{title:"İlk təşkilatlar",one:"İlk təşkilat",sheet:"İlk Təşkilatlar",
-    fields:[["name","Təşkilatın adı *","text",1],["chair","İlk təşkilatın sədri","person"],["phone","Əlaqə nömrəsi"],["state","Vəziyyəti","select",0,"«Qoşulacaq» və «Rayon komitəsi» ilk təşkilatların sayına daxil edilmir; rayon komitəsi siyahıda nömrəsiz göstərilir.",ORG_ST],["founded","Yaradılma tarixi","date"],
+    fields:[["name","Təşkilatın adı *","text",1],["chair","İlk təşkilatın sədri","person",0,"Boş qalsa, üzvlər siyahısında «ilk HİT Sədri» statusu olan üzv göstərilir."],["phone","Əlaqə nömrəsi"],["state","Vəziyyəti","select",0,"«Qoşulacaq» və «Rayon komitəsi» ilk təşkilatların sayına daxil edilmir; rayon komitəsi siyahıda nömrəsiz göstərilir.",ORG_ST],["founded","Yaradılma tarixi","date"],
       ["keys","Açar sözlər (üzvləri saymaq üçün)","text",0,"Struktur bölmədə bu sözlərdən biri olan üzvlər bu təşkilata aid sayılır. Vergüllə ayırın."],["note","Qeyd","area"]],
-    cols:[["Təşkilat",o=>`${isRK(o)?"<b>"+esc(o.name)+"</b>":esc(o.name)}<div class="mut">${o.chair?"Sədr: "+esc(o.chair):""}${o.phone?" · "+esc(o.phone):""}</div>`],
-      ["Üzv",o=>orgStat(o).n,"num"],["Qadın",o=>orgStat(o).q,"num"],["Kişi",o=>orgStat(o).k,"num"],["Fayl",o=>fileBadge(o),"num"]],
-    xl:[["Təşkilatın adı",o=>o.name],["Vəziyyəti",o=>o.state||"Fəaliyyətdədir"],["Sədr",o=>o.chair],["Əlaqə nömrəsi",o=>o.phone],["Yaradılma tarixi",o=>dmy(o.founded)],["Üzvlərin sayı",o=>orgStat(o).n],["Qadın",o=>orgStat(o).q],["Kişi",o=>orgStat(o).k],["Struktur bölmələr",o=>orgStat(o).u],["Qeyd",o=>o.note],["Fayllar",o=>(o.files||[]).map(f=>f.name).join("; ")]],
+    cols:[["Təşkilat",o=>`${isRK(o)?"<b>"+esc(o.name)+"</b>":esc(o.name)}<div class="mut">${o.phone?esc(o.phone):""}</div>`],
+      ["Sədr",o=>esc(orgChair(o))],["Üzv",o=>orgStat(o).n,"num"],["Qadın",o=>orgStat(o).q,"num"],["Kişi",o=>orgStat(o).k,"num"],["Fayl",o=>fileBadge(o),"num"]],
+    xl:[["Təşkilatın adı",o=>o.name],["Vəziyyəti",o=>o.state||"Fəaliyyətdədir"],["Sədr",o=>orgChair(o)],["Əlaqə nömrəsi",o=>o.phone],["Yaradılma tarixi",o=>dmy(o.founded)],["Üzvlərin sayı",o=>orgStat(o).n],["Qadın",o=>orgStat(o).q],["Kişi",o=>orgStat(o).k],["Struktur bölmələr",o=>orgStat(o).u],["Qeyd",o=>o.note],["Fayllar",o=>(o.files||[]).map(f=>f.name).join("; ")]],
     sort:(a,b)=>(isRK(b)-isRK(a))||orgStat(b).n-orgStat(a).n,noNum:isRK,
     /* cəm sətirləri: ilk təşkilatlar üzrə və MİHİ RK ilə birlikdə */
     totals:L=>{const sum=(A,f)=>A.reduce((a,o)=>a+f(o),0);const T=A=>[A.length,sum(A,o=>orgStat(o).n),sum(A,o=>orgStat(o).q),sum(A,o=>orgStat(o).k),sum(A,o=>(o.files||[]).length)];
-      const io=L.filter(o=>!isRK(o)),act=io.filter(orgActive),rows=[[`İlk təşkilatlar üzrə cəmi (${io.length})`,...T(io).slice(1)]];
-      if(L.some(isRK))rows.push(["Cəmi (MİHİ RK ilə birlikdə)",...T(L).slice(1)]);return rows},
-    text:o=>[o.name,o.chair,o.note].join(" ")},
+      const io=L.filter(o=>!isRK(o)),act=io.filter(orgActive),rows=[[`İlk təşkilatlar üzrə cəmi (${io.length})`,"",...T(io).slice(1)]];
+      if(L.some(isRK))rows.push(["Cəmi (MİHİ RK ilə birlikdə)","",...T(L).slice(1)]);return rows},
+    text:o=>[o.name,orgChair(o),o.note].join(" ")},
   events:{title:"Tədbirlər planı",one:"Tədbir",sheet:"Tədbirlər Planı",year:"date",
     fields:[["date","Tarix *","date",1],["dateTo","Bitmə tarixi (çoxgünlükdürsə)","date"],["title","Tədbirin adı *","area",1],["place","Keçiriləcəyi yer"],["resp","Məsul şəxs","person"],["part","İştirakçılar (sayı və ya kimlər)"],["status","İcra vəziyyəti","select",0,"",EV_ST],["note","Qeyd / icra haqqında","area"]],
     cols:[["Tarix",o=>`${dmy(o.date)}${o.dateTo?"<div class=mut>– "+dmy(o.dateTo)+"</div>":""}`,"num nowrap"],["Tədbir",o=>`${esc(o.title)}<div class="mut">${esc([o.place,o.resp].filter(Boolean).join(" · "))}</div>`],["Vəziyyət",o=>stBadge(o.status)],["Fayl",o=>fileBadge(o),"num"]],
@@ -1059,7 +1062,7 @@ const vetSheet=()=>{const rows=[];vetGroups().forEach(([s,l])=>l.forEach(m=>rows
 const bodySheet=b=>({name:b.name.slice(0,31),title:`${b.name}${b.elected?" — seçilib: "+dmy(b.elected):""}`,head:["№","Soyadı, Adı, Ata adı","Çalışdığı müəssisə","Vəzifəsi","Əlaqə nömrəsi","Təvəllüd","FİN","Təhsil","Orqanda"],
   rows:sortPeople(b.people).map((p,i)=>{const v=personView(p);return[i+1,p.name,v.work,v.pos,p.phone,dmy(v.birth),v.fin,eduShort(v.edu),p.role]}),text:[4,6],w:[5,32,30,24,15,11,9,16,12]});
 const regSheet=kind=>{const C=REG[kind];const L=DB[kind].slice().sort(C.sort);let nn=0;return{name:C.sheet,head:["№",...C.xl.map(x=>x[0])],rows:[...L.map(x=>[C.noNum&&C.noNum(x)?"":++nn,...C.xl.map(([,f])=>f(x)??"")]),
-    ...(C.totals&&L.length?C.totals(L).map(r=>{const row=["",r[0],...C.xl.slice(1).map(()=>"")];C.xl.forEach(([h],i)=>{const j={"Üzvlərin sayı":1,"Qadın":2,"Kişi":3}[h];if(j)row[i+1]=r[j]});return row}):[])],w:[5,...C.xl.map(()=>22)]}};
+    ...(C.totals&&L.length?C.totals(L).map(r=>{const row=["",r[0],...C.xl.slice(1).map(()=>"")];C.xl.forEach(([h],i)=>{const j={"Üzvlərin sayı":2,"Qadın":3,"Kişi":4}[h];if(j)row[i+1]=r[j]});return row}):[])],w:[5,...C.xl.map(()=>22)]}};
 async function exportSheets(sheets,fname){if(!window.XLSX){toast("Excel kitabxanası yüklənmədi");return}
   const wb=XLSX.utils.book_new(),used=new Set();
   for(const s of sheets){const A=[];if(s.title)A.push([s.title],[]);A.push(s.head,...s.rows);const ws=XLSX.utils.aoa_to_sheet(A);
