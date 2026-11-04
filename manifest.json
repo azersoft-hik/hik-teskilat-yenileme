@@ -1,6 +1,6 @@
 {
  "product": "hik-teskilat",
- "ui": 35,
+ "ui": 36,
  "minMain": 1,
  "files": [
   {
@@ -10,8 +10,8 @@
   },
   {
    "path": "app.js",
-   "size": 164135,
-   "sha256": "f1a7c30860668b59b68a2ad34210f131471962a7ff9fadc3dfb18aee7f95ce25"
+   "size": 166604,
+   "sha256": "4f4166194585295dbc9f6c7cf4db2ece48d68d238226a0c681ac5dbf7d66d06d"
   },
   {
    "path": "autofill.js",

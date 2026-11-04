@@ -1,5 +1,5 @@
 "use strict";
-const UI_VER=35; /* ekran hissəsinin versiyası — hər yeniləmədə artırılır */
+const UI_VER=36; /* ekran hissəsinin versiyası — hər yeniləmədə artırılır */
 /* ================= HİK-təşkilat — Həmkarlar İttifaqı rayon komitəsinin təşkilati işi ================= */
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -142,7 +142,8 @@ const STATUSES=["Veteran","Qazi","Şəhid ailəsi","Əlil","Müharibə iştirak�
 const stLow=s=>String(s||"").trim().toLocaleLowerCase("az");
 const statusParts=st=>{const seen=new Set();return String(st||"").split(/[,;\/]+/).map(x=>x.trim()).filter(Boolean).map(p=>STATUSES.find(s=>stLow(s)===stLow(p))||p).filter(p=>{const k=stLow(p);if(seen.has(k))return false;seen.add(k);return true})};
 /* ilk təşkilatın sədri: kartda əl ilə yazılıbsa o, yoxdursa üzvlərdən «ilk HİT Sədri» statusu olanlar */
-const isOrgChair=m=>statusParts(m.status).some(p=>/h[iı]t\s*sədr/.test(stLow(p)));
+const isChairSt=p=>/h[iı]t\s*sədr/.test(stLow(p));
+const isOrgChair=m=>statusParts(m.status).some(isChairSt);
 const orgChair=o=>o.chair||active().filter(m=>isOrgChair(m)&&memOrg(m)?.id===o.id).map(m=>m.name).join(", ");
 const statusOthers=(st,cur)=>statusParts(st).filter(p=>stLow(p)!==stLow(cur));
 function bodiesOf(m){const k=nkey(m.name),r=[];for(const b of DB.bodies)for(const p of b.people)if(nkey(p.name)===k)r.push({b,p});return r}
@@ -389,20 +390,20 @@ function bindDues(){const S=duesState(),go=m=>{S.m=m;render()};
 /* ================= render ================= */
 const TABS=[["home","Ümumi"],["mem","Üzvlər"],["bodies","Komitə və komissiyalar"],["orgs","İlk təşkilatlar"],["contracts","Müqavilələr"],["events","Tədbirlər planı"],["prots","Protokollar"],["settings","Parametrlər"]];
 /* Alt bölmələr: səhifənin yuxarısında düymə kimi */
-const SUB={orgs:[["orgs","İlk təşkilatlar"],["dues","Maaş və 2%"]],mem:[["mem","Üzvlər"],["vet","Veteran, Qazi, Şəhid ailəsi"]],prots:[["prots","Protokollar"],["plens","Plenumlar"]],events:[["events","Tədbirlər planı"],["cal","İstehsalat təqvimi"]]};
-const PARENT={dues:"orgs",vet:"mem",plens:"prots",cal:"events"};
+const SUB={orgs:[["orgs","İlk təşkilatlar"],["chairs","İlk təşkilat sədrləri"],["dues","Maaş və 2%"]],mem:[["mem","Üzvlər"],["vet","Veteran, Qazi, Şəhid ailəsi"]],prots:[["prots","Protokollar"],["plens","Plenumlar"]],events:[["events","Tədbirlər planı"],["cal","İstehsalat təqvimi"]]};
+const PARENT={chairs:"orgs",dues:"orgs",vet:"mem",plens:"prots",cal:"events"};
 function subNav(cnt){const g=SUB[PARENT[UI.tab]||UI.tab];if(!g)return"";
   return`<div class="subnav" role="tablist">${g.map(([k,l])=>`<button class="subtab" role="tab" data-tab="${k}" aria-selected="${UI.tab===k}">${l}${cnt[k]?` <span class="n">${cnt[k]}</span>`:""}</button>`).join("")}</div>`}
 function render(){
   document.documentElement.dataset.sec=PARENT[UI.tab]||UI.tab;
   $("#hdrOrg").textContent=DB.org||DEF_ORG;
-  const cnt={mem:active().length,bodies:DB.bodies.length,vet:active().filter(m=>m.status).length,orgs:DB.orgs.filter(orgActive).length,events:DB.events.length,prots:DB.prots.length,plens:DB.plens.length,contracts:DB.contracts.length};
+  const cnt={mem:active().length,bodies:DB.bodies.length,vet:active().filter(m=>statusParts(m.status).some(p=>!isChairSt(p))).length,chairs:active().filter(isOrgChair).length,orgs:DB.orgs.filter(orgActive).length,events:DB.events.length,prots:DB.prots.length,plens:DB.plens.length,contracts:DB.contracts.length};
   $("#tabs").innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" data-tab="${k}" aria-selected="${UI.tab===k||PARENT[UI.tab]===k}">${l}${cnt[k]?`<span class="n">${cnt[k]}</span>`:""}</button>`).join("");
   licBar();
   const v=$("#view");
-  const R={home:homeHTML,mem:memHTML,bodies:bodiesHTML,vet:vetHTML,orgs:()=>regHTML("orgs"),events:()=>regHTML("events"),prots:()=>regHTML("prots"),plens:()=>regHTML("plens"),contracts:()=>regHTML("contracts"),cal:calHTML,dues:duesHTML,settings:settingsHTML}[UI.tab];
+  const R={home:homeHTML,mem:memHTML,bodies:bodiesHTML,vet:vetHTML,orgs:()=>regHTML("orgs"),events:()=>regHTML("events"),prots:()=>regHTML("prots"),plens:()=>regHTML("plens"),contracts:()=>regHTML("contracts"),cal:calHTML,chairs:chairsHTML,dues:duesHTML,settings:settingsHTML}[UI.tab];
   v.innerHTML=subNav(cnt)+R();
-  ({home:bindHome,mem:bindMem,bodies:bindBodies,vet:bindVet,orgs:()=>bindReg("orgs"),events:()=>bindReg("events"),prots:()=>bindReg("prots"),plens:()=>bindReg("plens"),contracts:()=>bindReg("contracts"),cal:bindCal,dues:bindDues,settings:bindSettings})[UI.tab]();
+  ({home:bindHome,mem:bindMem,bodies:bindBodies,vet:bindVet,orgs:()=>bindReg("orgs"),events:()=>bindReg("events"),prots:()=>bindReg("prots"),plens:()=>bindReg("plens"),contracts:()=>bindReg("contracts"),cal:bindCal,chairs:bindChairs,dues:bindDues,settings:bindSettings})[UI.tab]();
   addPrintBtns()}
 /* lisenziya: qırmızı zolaq (yoxdur/bitib), sarı zolaq (30 gündən az qalıb), açılışda aktivləşdirmə pəncərəsi */
 const licDays=()=>LIC.until&&LIC.today?Math.round((Date.parse(LIC.until)-Date.parse(LIC.today))/864e5):null;
@@ -769,7 +770,7 @@ function bindBodies(){const S=UI.body;
 
 /* ---------- Veteran, Qazi, Şəhid ailəsi ---------- */
 /* Bir neçə statusu olan şəxs hər statusun bölməsində göstərilir, digər statusları alt yazıda */
-function vetGroups(){const g=new Map();for(const m of active())for(const p of statusParts(m.status)){const k=stLow(p);if(!g.has(k))g.set(k,[p,[]]);g.get(k)[1].push(m)}
+function vetGroups(){const g=new Map();for(const m of active())for(const p of statusParts(m.status)){if(isChairSt(p))continue;const k=stLow(p);if(!g.has(k))g.set(k,[p,[]]);g.get(k)[1].push(m)}
   const ord=s=>{const i=STATUSES.findIndex(x=>stLow(x)===stLow(s));return i<0?99:i};return[...g.values()].sort((a,b)=>ord(a[0])-ord(b[0])||a[0].localeCompare(b[0],"az"))}
 function vetHTML(){const G=vetGroups(),T=new Set(G.flatMap(x=>x[1].map(m=>m.id))).size,N=G.reduce((a,x)=>a+x[1].length,0);
   return`<section class="card printable" data-ptitle="Veteran, Qazi, Şəhid ailəsi statuslu üzvlər"><h2>Veteran, Qazi, Şəhid ailəsi</h2>
@@ -779,6 +780,17 @@ function vetHTML(){const G=vetGroups(),T=new Set(G.flatMap(x=>x[1].map(m=>m.id))
     ${G.map(([s,l])=>`<h3 class="grp-h">${esc(s)} <span class="badge">${l.length}</span></h3><div class="tbl-wrap"><table class="reg"><thead><tr><th class="num">№</th><th>Soyadı, adı, ata adı</th><th>FİN</th><th class="num">Təvəllüd</th><th class="num">Yaş</th><th>İlk təşkilat / vəzifə</th></tr></thead><tbody>
       ${l.sort((a,b)=>a.name.localeCompare(b.name,"az")).map((m,i)=>`<tr tabindex="0" data-id="${m.id}" class="${isRet(m.birth)?"ret":""}"><td class="num">${i+1}</td><td>${retName(esc(m.name),m.birth)}${statusOthers(m.status,s).length?`<div class="mut">${esc(statusOthers(m.status,s).join(", "))}</div>`:""}</td><td>${esc(m.fin)}</td><td class="num${isRet(m.birth)?" retd":""}">${dmy(m.birth)}</td><td class="num${isRet(m.birth)?" retd":""}">${ageOf(m.birth)??""}</td><td>${esc(orgName(m))}<div class="mut">${esc(m.pos)}</div></td></tr>`).join("")}</tbody></table></div>`).join("")
     ||`<div class="empty"><b>Statuslu üzv yoxdur</b>Üzvlər Excel faylındakı «Statusu» sütununda Veteran, Qazi, Şəhid ailəsi yazılanlar burada görünür.</div>`}</section>`}
+/* ---------- İlk təşkilat sədrləri (İlk təşkilatlar bölməsi): «ilk HİT Sədri» statusundan ---------- */
+const chairList=()=>active().filter(isOrgChair).sort((a,b)=>orgName(a).localeCompare(orgName(b),"az")||a.name.localeCompare(b.name,"az"));
+function chairsHTML(){const L=chairList();
+  return`<section class="card printable" data-ptitle="İlk təşkilat sədrləri"><h2>İlk təşkilat sədrləri</h2>
+    <p class="hint">Üzvlər siyahısında «ilk HİT Sədri» statusu olanlardan avtomatik yığılır. Dəyişmək üçün sətrə klikləyib üzvün kartında statusu düzəldin.</p>
+    <div class="reg-tools"><button class="btn" id="cExp">Excel-ə çıxar</button></div>
+    ${L.length?`<div class="tbl-wrap"><table class="reg"><thead><tr><th class="num">№</th><th>İlk təşkilat</th><th>Sədr (soyadı, adı, ata adı)</th><th>FİN</th><th class="num">Təvəllüd</th><th class="num">Yaş</th><th>Vəzifəsi</th></tr></thead><tbody>
+    ${L.map((m,i)=>`<tr tabindex="0" data-id="${m.id}" class="${isRet(m.birth)?"ret":""}"><td class="num">${i+1}</td><td>${esc(orgName(m))}</td><td>${retName(esc(m.name),m.birth)}${statusParts(m.status).filter(p=>!isChairSt(p)).length?`<div class="mut">${esc(statusParts(m.status).filter(p=>!isChairSt(p)).join(", "))}</div>`:""}</td><td>${esc(m.fin)}</td><td class="num${isRet(m.birth)?" retd":""}">${dmy(m.birth)}</td><td class="num${isRet(m.birth)?" retd":""}">${ageOf(m.birth)??""}</td><td>${esc(m.pos)}</td></tr>`).join("")}</tbody></table></div>`
+    :`<div class="empty"><b>Sədr yoxdur</b>Üzvün kartında «Statusu» xanasına «ilk HİT Sədri» yazın.</div>`}</section>`}
+const chairSheet=()=>({name:"İlk təşkilat sədrləri",head:["№","İlk təşkilat","Soyadı, adı, ata adı","Əlavə status","FİN","Təvəllüd","Yaş","Struktur bölmə","Vəzifə"],rows:chairList().map((m,i)=>[i+1,orgName(m),m.name,statusParts(m.status).filter(p=>!isChairSt(p)).join(", "),m.fin,dmy(m.birth),ageOf(m.birth)??"",m.unit,m.pos]),text:[4],w:[5,40,32,18,9,11,5,40,24]});
+function bindChairs(){bindRows(id=>{UI.tab="mem";UI.mem.sel=id;render()});$("#cExp").onclick=()=>exportSheets([chairSheet()],"İlk təşkilat sədrləri")}
 function bindVet(){bindRows(id=>{UI.tab="mem";UI.mem.sel=id;render()});$("#vExp").onclick=()=>exportSheets([vetSheet()],"Veteran, Qazi, Şəhid ailəsi")}
 
 /* ---------- Ümumi reyestr: İlk təşkilatlar, Tədbirlər planı, Protokollar, Plenumlar (fayllarla) ---------- */
@@ -1031,7 +1043,7 @@ function settingsHTML(){const bi=HAS_API?window.api.backupInfo():null;
   <p class="mut" style="text-align:center">HİK-təşkilat 1.0.0 · yeniləmə ${UI_VER}${HAS_API&&window.api.uiInfo&&window.api.uiInfo().fromUpdate?" (yeniləmədən)":""} · AzerSoft LLC</p></div>`}
 function bindSettings(){
   $("#sForm").onsubmit=e=>{e.preventDefault();if(!guard())return;DB.org=normName($("#s-org").value)||DEF_ORG;DB.chair=normName($("#s-chair").value);commit("Yadda saxlandı")};
-  $("#allExp").onclick=()=>exportSheets([...DB.bodies.map(bodySheet),vetSheet(),memSheet(),regSheet("orgs"),regSheet("events"),regSheet("prots"),regSheet("plens"),regSheet("contracts")],"Komissiyalar-Protokol");
+  $("#allExp").onclick=()=>exportSheets([...DB.bodies.map(bodySheet),vetSheet(),memSheet(),regSheet("orgs"),chairSheet(),regSheet("events"),regSheet("prots"),regSheet("plens"),regSheet("contracts")],"Komissiyalar-Protokol");
   bindMid($("#view"));
   $("#bkJson")?.addEventListener("click",async()=>{const d=todayISO();if(await window.api.saveFile(`HT_ehtiyat_${d}.json`,new TextEncoder().encode(JSON.stringify(DB)),"json"))toast("Ehtiyat nüsxə saxlanıldı")});
   $("#wbIn")?.addEventListener("click",()=>$("#wbFile").click());
@@ -1124,7 +1136,7 @@ function decisionsFrom(t){const L=String(t||"").split(/\r?\n/),out=[];let on=fal
     if(/^(QƏRARQƏBULOLUNUR|QƏRARQƏBULEDILDI|ICLASINSƏDRI|ICLASSƏDRI|SƏDR|KATIB|IMZA)/.test(k))break;out.push(l)}
   return out.join("\n").trim()}
 /* Müqavilə, tədbir, ilk təşkilat: doldurulmuş xanalar A4 səhifədə */
-function docRecView(kind,o){const C=REG[kind];const head=kind==="contracts"?`${o.type||"Müqavilə"}${o.no?" № "+o.no:""}`:kind==="events"?(o.title||"Tədbir"):(o.name||"İlk təşkilat");
+function docRecView(kind,o){const C=REG[kind];if(kind==="orgs")o={...o,chair:orgChair(o)};const head=kind==="contracts"?`${o.type||"Müqavilə"}${o.no?" № "+o.no:""}`:kind==="events"?(o.title||"Tədbir"):(o.name||"İlk təşkilat");
   const skip={type:1,no:1,keys:1,title:kind==="events",name:kind==="orgs"};
   const rows=C.fields.filter(([k])=>!skip[k]&&String(o[k]||"").trim()).map(([k,l,t])=>`<div class="doc-s">${esc(l.replace(/\s*\*$/,"").replace(/\s*\(.*\)$/,""))}</div><p class="doc-t">${esc(t==="date"?dmy(o[k]):String(o[k]).trim())}</p>`).join("");
   const st=kind==="contracts"?`<div class="doc-s">Vəziyyəti</div><p class="doc-t">${esc(ctState(o).t)}</p>`:"";
