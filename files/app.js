@@ -1,5 +1,5 @@
 "use strict";
-const UI_VER=30; /* ekran hissəsinin versiyası — hər yeniləmədə artırılır */
+const UI_VER=33; /* ekran hissəsinin versiyası — hər yeniləmədə artırılır */
 /* ================= HİK-təşkilat — Həmkarlar İttifaqı rayon komitəsinin təşkilati işi ================= */
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -228,11 +228,105 @@ function parseBodies(wb){const res=[];
   res.sort((a,b)=>{const i=BODY_ORDER.indexOf(a.name),j=BODY_ORDER.indexOf(b.name);return(i<0?99:i)-(j<0?99:j)});
   return res}
 
+/* ================= İstehsalat təqvimi (5 günlük iş həftəsi) =================
+   2026 — rəsmi (Əmək Nazirliyi Kollegiyasının qərarı, Nazirlər Kabinetinin 02.12.2025 tarixli 362 nömrəli qərarı).
+   2027 — LAYİHƏ: Nazirlər Kabinetinin qərarı dərc olunana qədər Ramazan, Qurban və köçürmələr hesablanmış tarixlərdir.
+   Yeni il əlavə etmək üçün CAL_YEARS-a bir sətir yazılır. İstifadəçi düzəlişləri DB.calEdits-də saxlanılır. */
+const CAL_FIXED=[["01-01","Yeni il bayramı"],["01-02","Yeni il bayramı"],["01-20","Ümumxalq Hüzn Günü"],["03-08","Beynəlxalq Qadınlar Günü"],["03-20","Novruz bayramı"],["03-21","Novruz bayramı"],["03-22","Novruz bayramı"],["03-23","Novruz bayramı"],["03-24","Novruz bayramı"],["05-09","Faşizm üzərində Qələbə Günü"],["05-28","Müstəqillik Günü"],["06-15","Azərbaycan Xalqının Milli Qurtuluş Günü"],["06-26","Silahlı Qüvvələr Günü"],["11-08","Zəfər Günü"],["11-09","Dövlət Bayrağı Günü"],["12-31","Dünya Azərbaycanlılarının Həmrəyliyi Günü"]];
+const CAL_YEARS={
+  2026:{official:true,src:"Əmək və Əhalinin Sosial Müdafiəsi Nazirliyi Kollegiyasının qərarı; Nazirlər Kabinetinin 02.12.2025 tarixli 362 nömrəli qərarı",ramazan:["03-20","03-21"],qurban:["05-27","05-28"],off:["03-09","03-25","03-26","03-27","03-30","05-11","05-29","11-10"]},
+  2027:{official:false,ramazan:["03-09","03-10"],qurban:["05-16","05-17"],off:["01-04","03-25","03-26","05-10","05-18","06-28"]}};
+const CAL_TYPES={work:"İş günü",short:"Qısaldılmış iş günü",hol:"Bayram (qeyri-iş günü)",off:"İstirahət günü"};
+const CAL_WD=["B.e.","Ç.a.","Ç.","C.a.","C.","Ş.","B."];
+const CAL_NORMS=[40,36,24];
+const pad2=n=>String(n).padStart(2,"0");
+const calIl=y=>`${y}-${{0:"cu",1:"ci",2:"ci",3:"cü",4:"cü",5:"ci",6:"cı",7:"ci",8:"ci",9:"cu"}[y%10]}`;
+const calQ=q=>`${q}-${q>2?"cü":"ci"} rüb`;
+function calDays(y){const c=CAL_YEARS[y],edits=DB.calEdits||{},map=new Map(),hol=new Map();
+  const add=(md,n)=>{hol.set(md,[...(hol.get(md)||[]),n])};
+  CAL_FIXED.forEach(([md,n])=>add(md,n));c.ramazan.forEach(md=>add(md,"Ramazan bayramı"));c.qurban.forEach(md=>add(md,"Qurban bayramı"));
+  for(let d=new Date(Date.UTC(y,0,1));d.getUTCFullYear()===y;d=new Date(d.getTime()+864e5)){
+    const m=d.getUTCMonth(),md=`${pad2(m+1)}-${pad2(d.getUTCDate())}`,iso=`${y}-${md}`,wd=(d.getUTCDay()+6)%7;
+    let t=wd>=5?"off":"work",names=[],edited=false;
+    if(hol.has(md)){t="hol";names=hol.get(md)}else if(c.off.includes(md)){t="off";names=["Köçürülmüş istirahət günü"]}
+    const e=edits[iso];if(e){t=e.t;names=e.n?[e.n]:(e.t===("hol")||e.t==="off"?names:[]);edited=true}
+    map.set(iso,{iso,m,d:d.getUTCDate(),wd,t,names,edited})}
+  /* bayramdan bir gün əvvəlki iş günü 1 saat qısaldılır; əl ilə «İş günü» seçilibsə toxunulmur */
+  for(const x of map.values()){if(x.t!=="work"||x.edited)continue;
+    const nx=map.get(new Date(Date.UTC(y,x.m,x.d+1)).toISOString().slice(0,10));
+    if(nx&&nx.t==="hol"){x.t="short";x.names=["Bayramqabağı: 1 saat qısa"]}}
+  return map}
+function calStats(map){const rows=MONTHS.map(()=>({cal:0,work:0,rest:0,short:0}));
+  for(const x of map.values()){const r=rows[x.m];r.cal++;if(x.t==="work"||x.t==="short"){r.work++;if(x.t==="short")r.short++}else r.rest++}
+  /* saatlar onda birlərlə tam ədəd kimi toplanır, yuvarlaqlaşdırma xətası olmasın */
+  const hrs=(r,w)=>(r.work*w*2-r.short*10)/10;
+  const sum=a=>a.reduce((s,r)=>({cal:s.cal+r.cal,work:s.work+r.work,rest:s.rest+r.rest,short:s.short+r.short}),{cal:0,work:0,rest:0,short:0});
+  return{rows,sum,hrs}}
+const calYear=()=>{const y=UI.cal&&UI.cal.y;if(CAL_YEARS[y])return y;const n=+todayISO().slice(0,4);return CAL_YEARS[n]?n:+Object.keys(CAL_YEARS).at(-1)};
+const calNum=v=>String(Math.round(v*10)/10).replace(".",",");
+const calWhen=iso=>{const[,m,d]=iso.split("-");return`${+d} ${MONTHS[+m-1]}`};
+function calHolidayList(map){const g=[];g.moved=[];
+  for(const x of map.values()){if(x.t!=="hol"&&!(x.t==="off"&&x.names.length))continue;
+    const prev=new Date(Date.UTC(+x.iso.slice(0,4),x.m,x.d-1)).toISOString().slice(0,10);
+    for(const n of x.names){if(n==="Köçürülmüş istirahət günü"){g.moved.push(x.iso);continue}
+      const ex=g.find(q=>q.n===n&&q.to===prev);if(ex)ex.to=x.iso;else g.push({n,from:x.iso,to:x.iso})}}
+  return g}
+function calHTML(){const y=calYear(),c=CAL_YEARS[y],map=calDays(y),{rows,sum,hrs}=calStats(map),T=sum(rows),today=todayISO(),ed=DB.calEdits||{};
+  const edN=Object.keys(ed).filter(k=>k.startsWith(y+"-")).length;
+  const next=[...map.values()].find(x=>x.iso>=today&&x.t==="hol");
+  const mt=(l,v,s)=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+  const month=(mi)=>{const L=[...map.values()].filter(x=>x.m===mi),r=rows[mi];
+    return`<div class="cal-m"><h3>${MONTHS[mi][0].toLocaleUpperCase("az")+MONTHS[mi].slice(1)}</h3><div class="cal-g">${CAL_WD.map((w,i)=>`<span class="cal-wd${i>4?" we":""}">${w}</span>`).join("")}${"<span></span>".repeat(L[0].wd)}${L.map(x=>{
+      const tip=`${dmy(x.iso)} — ${[CAL_TYPES[x.t],...x.names].filter((v,i,a)=>a.indexOf(v)===i).join(" · ")}${x.edited?" (əl ilə düzəldilib)":""}`;
+      return`<button type="button" class="cal-d ${x.t}${x.iso===today?" today":""}${x.edited?" ed":""}" data-day="${x.iso}" title="${esc(tip)}">${x.d}</button>`}).join("")}</div>
+      <div class="cal-f">${r.work} iş günü · ${calNum(hrs(r,40))} saat</div></div>`};
+  const row=(l,r,cls)=>`<tr${cls?` class="${cls}"`:""}><td>${l}</td><td class="n">${r.cal}</td><td class="n">${r.work}</td><td class="n">${r.rest}</td>${CAL_NORMS.map(w=>`<td class="n">${calNum(hrs(r,w))}</td>`).join("")}</tr>`;
+  const Q=[0,1,2,3].map(q=>sum(rows.slice(q*3,q*3+3)));
+  const tbody=[0,1,2,3].map(q=>[0,1,2].map(i=>row(MONTHS[q*3+i][0].toLocaleUpperCase("az")+MONTHS[q*3+i].slice(1),rows[q*3+i])).join("")+row(calQ(q+1),Q[q],"cal-q")).join("")+row(`${calIl(y)} il`,T,"cal-t");
+  const G=calHolidayList(map);
+  const range=g=>g.from===g.to?calWhen(g.from):`${+g.from.slice(8)}–${calWhen(g.to)}`;
+  const moved=G.moved.map(calWhen);
+  const shorts=[...map.values()].filter(x=>x.t==="short").map(x=>calWhen(x.iso));
+  return`<div class="kpis">${mt("İş günü",T.work,`${calIl(y)} il, 5 günlük həftə`)}${mt("Qeyri-iş günü",T.rest,"istirahət və bayram günləri")}${mt("İllik norma",calNum(hrs(T,40))+" saat",`orta ayda ${calNum(Math.round(hrs(T,40)/12*100)/100)} saat`)}${mt("Növbəti bayram",next?calWhen(next.iso):"—",next?esc(next.names.join(", ")):"bu il qalmayıb")}</div>
+  ${c.official?"":`<div class="notice"><b>${calIl(y)} il layihədir, rəsmi deyil.</b> Nazirlər Kabinetinin ${calIl(y)} il qərarı hələ dərc olunmayıb. Ramazan, Qurban və köçürülmüş günlər hesablanıb, dəyişə bilər. Qərar çıxanda günün üstünə klikləyib düzəldin.</div>`}
+  <section class="card printable cal-card" data-ptitle="İstehsalat təqvimi ${y}">
+    <h2>${calIl(y)} ilin istehsalat təqvimi${c.official?"":" (layihə)"}</h2>
+    <div class="reg-tools cal-tools"><label>İl <select id="calY">${Object.keys(CAL_YEARS).map(k=>`<option value="${k}"${+k===y?" selected":""}>${k}${CAL_YEARS[k].official?"":" (layihə)"}</option>`).join("")}</select></label><button class="btn" type="button" id="calXl">Excel-ə çıxar</button>${edN?`<button class="btn ghost" type="button" id="calReset">Düzəlişləri sil (${edN})</button>`:""}</div>
+    <div class="cal-leg"><span><i class="work"></i>İş günü</span><span><i class="short"></i>Qısaldılmış (1 saat az)</span><span><i class="off"></i>İstirahət</span><span><i class="hol"></i>Bayram</span></div>
+    <div class="cal-grid">${MONTHS.map((_,i)=>month(i)).join("")}</div>
+    <p class="hint cal-hint">Günü dəyişmək üçün üstünə klikləyin.</p>
+    <div class="cal-bot"><div style="overflow-x:auto"><h3>Aylar üzrə iş vaxtı norması</h3><table class="reg cal-tb"><thead><tr><th>Dövr</th><th class="n">Təqvim</th><th class="n">İş</th><th class="n">Qeyri-iş</th>${CAL_NORMS.map(w=>`<th class="n">${w} saat</th>`).join("")}</tr></thead><tbody>${tbody}</tbody></table></div>
+    <div><h3>Bayram və qeyri-iş günləri</h3><ul class="cal-hl">${G.map(g=>`<li><b>${range(g)}</b> — ${esc(g.n)}</li>`).join("")}</ul>
+      ${moved.length?`<p><b>Köçürülmüş istirahət günləri:</b> ${moved.join(", ")}.</p>`:""}
+      ${shorts.length?`<p><b>1 saat qısaldılmış iş günləri:</b> ${shorts.join(", ")}.</p>`:""}
+      <p class="hint">Səsvermə günü qabağı iş günü də 1 saat qısaldılır: belə gün elan olunsa, əl ilə qeyd edin.${c.official?` 6 günlük iş həftəsində köçürülmüş günlər azdır (25, 26 mart, 29 may, 10 noyabr), illik norma eynidir. Mənbə: ${esc(c.src)}.`:""}</p></div></div>
+  </section>
+  <dialog id="calDlg" class="cal-dlg"></dialog>`}
+function bindCal(){const y=calYear();
+  $("#calY").onchange=e=>{UI.cal={y:+e.target.value};render()};
+  $("#calXl").onclick=()=>{const map=calDays(y),{rows,sum,hrs}=calStats(map),nm=(i)=>MONTHS[i][0].toLocaleUpperCase("az")+MONTHS[i].slice(1);
+    const line=(l,r)=>[l,r.cal,r.work,r.rest,...CAL_NORMS.map(w=>hrs(r,w))];
+    const R=[];for(let q=0;q<4;q++){for(let i=0;i<3;i++)R.push(line(nm(q*3+i),rows[q*3+i]));R.push(line(calQ(q+1),sum(rows.slice(q*3,q*3+3))))}R.push(line("İl üzrə",sum(rows)));
+    const days=[...map.values()].filter(x=>x.t!=="work"&&!(x.t==="off"&&!x.names.length)).map(x=>[dmy(x.iso),CAL_WD[x.wd],CAL_TYPES[x.t],x.names.join(", ")]);
+    const tag=CAL_YEARS[y].official?"":" (layihə)";
+    exportSheets([{name:"Norma",title:`${calIl(y)} ilin istehsalat təqvimi${tag}`,head:["Dövr","Təqvim günü","İş günü","Qeyri-iş günü",...CAL_NORMS.map(w=>`${w} saatlıq həftə`)],rows:R,w:[14,12,10,14,18,18,18]},{name:"Xüsusi günlər",title:`${y}: bayram, köçürülmüş və qısaldılmış günlər${tag}`,head:["Tarix","Gün","Növü","Qeyd"],rows:days,w:[12,6,24,44]}],`İstehsalat təqvimi ${y}`)};
+  $("#calReset")?.addEventListener("click",()=>{if(!confirm(`${calIl(y)} il üzrə əl ilə edilmiş bütün düzəlişlər silinsin?`))return;for(const k of Object.keys(DB.calEdits||{}))if(k.startsWith(y+"-"))delete DB.calEdits[k];commit("Düzəlişlər silindi")});
+  $$("#view .cal-d").forEach(b=>b.onclick=()=>{const iso=b.dataset.day,x=calDays(y).get(iso),e=(DB.calEdits||{})[iso],dlg=$("#calDlg");
+    dlg.innerHTML=`<form method="dialog" id="calF"><h3>${dmy(iso)}, ${CAL_WD[x.wd]}</h3>
+      <div class="fld"><label for="calT">Günün növü</label><select id="calT">${Object.entries(CAL_TYPES).map(([k,l])=>`<option value="${k}"${x.t===k?" selected":""}>${l}</option>`).join("")}</select></div>
+      <div class="fld"><label for="calN">Adı (istəyə görə)</label><input id="calN" value="${esc(e?e.n||"":"")}" placeholder="${esc(x.names.join(", "))}"></div>
+      <div class="form-actions"><button class="btn primary" type="button" id="calOk">Saxla</button>${e?`<button class="btn" type="button" id="calDef">Əvvəlki hala qaytar</button>`:""}<button class="btn ghost" type="button" id="calNo">Bağla</button></div></form>`;
+    const done=m=>{dlg.close();commit(m)};
+    $("#calNo").onclick=()=>dlg.close();
+    $("#calDef")?.addEventListener("click",()=>{delete DB.calEdits[iso];done("Gün əvvəlki halına qaytarıldı")});
+    $("#calOk").onclick=()=>{if(!guard())return;DB.calEdits=DB.calEdits||{};DB.calEdits[iso]={t:$("#calT").value,n:normName($("#calN").value)};done("Yadda saxlandı")};
+    dlg.showModal()})}
+
 /* ================= render ================= */
 const TABS=[["home","Ümumi"],["mem","Üzvlər"],["bodies","Komitə və komissiyalar"],["orgs","İlk təşkilatlar"],["contracts","Müqavilələr"],["events","Tədbirlər planı"],["prots","Protokollar"],["settings","Parametrlər"]];
 /* Alt bölmələr: səhifənin yuxarısında düymə kimi */
-const SUB={mem:[["mem","Üzvlər"],["vet","Veteran, Qazi, Şəhid ailəsi"]],prots:[["prots","Protokollar"],["plens","Plenumlar"]]};
-const PARENT={vet:"mem",plens:"prots"};
+const SUB={mem:[["mem","Üzvlər"],["vet","Veteran, Qazi, Şəhid ailəsi"]],prots:[["prots","Protokollar"],["plens","Plenumlar"]],events:[["events","Tədbirlər planı"],["cal","İstehsalat təqvimi"]]};
+const PARENT={vet:"mem",plens:"prots",cal:"events"};
 function subNav(cnt){const g=SUB[PARENT[UI.tab]||UI.tab];if(!g)return"";
   return`<div class="subnav" role="tablist">${g.map(([k,l])=>`<button class="subtab" role="tab" data-tab="${k}" aria-selected="${UI.tab===k}">${l}${cnt[k]?` <span class="n">${cnt[k]}</span>`:""}</button>`).join("")}</div>`}
 function render(){
@@ -242,9 +336,9 @@ function render(){
   $("#tabs").innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" data-tab="${k}" aria-selected="${UI.tab===k||PARENT[UI.tab]===k}">${l}${cnt[k]?`<span class="n">${cnt[k]}</span>`:""}</button>`).join("");
   licBar();
   const v=$("#view");
-  const R={home:homeHTML,mem:memHTML,bodies:bodiesHTML,vet:vetHTML,orgs:()=>regHTML("orgs"),events:()=>regHTML("events"),prots:()=>regHTML("prots"),plens:()=>regHTML("plens"),contracts:()=>regHTML("contracts"),settings:settingsHTML}[UI.tab];
+  const R={home:homeHTML,mem:memHTML,bodies:bodiesHTML,vet:vetHTML,orgs:()=>regHTML("orgs"),events:()=>regHTML("events"),prots:()=>regHTML("prots"),plens:()=>regHTML("plens"),contracts:()=>regHTML("contracts"),cal:calHTML,settings:settingsHTML}[UI.tab];
   v.innerHTML=subNav(cnt)+R();
-  ({home:bindHome,mem:bindMem,bodies:bindBodies,vet:bindVet,orgs:()=>bindReg("orgs"),events:()=>bindReg("events"),prots:()=>bindReg("prots"),plens:()=>bindReg("plens"),contracts:()=>bindReg("contracts"),settings:bindSettings})[UI.tab]();
+  ({home:bindHome,mem:bindMem,bodies:bindBodies,vet:bindVet,orgs:()=>bindReg("orgs"),events:()=>bindReg("events"),prots:()=>bindReg("prots"),plens:()=>bindReg("plens"),contracts:()=>bindReg("contracts"),cal:bindCal,settings:bindSettings})[UI.tab]();
   addPrintBtns()}
 /* lisenziya: qırmızı zolaq (yoxdur/bitib), sarı zolaq (30 gündən az qalıb), açılışda aktivləşdirmə pəncərəsi */
 const licDays=()=>LIC.until&&LIC.today?Math.round((Date.parse(LIC.until)-Date.parse(LIC.today))/864e5):null;
@@ -673,7 +767,7 @@ let _os=null,_osv=-1;
 function orgStat(o){if(_osv!==memVer+DB.orgs.length*1000+DB.orgs.map(x=>x.keys).join().length){_os=new Map();_osv=memVer+DB.orgs.length*1000+DB.orgs.map(x=>x.keys).join().length}
   if(!_os.has(o.id)||_os.get(o.id).keys!==o.keys){const L=active().filter(m=>memOrg(m)===o);_os.set(o.id,{keys:o.keys,n:L.length,q:L.filter(m=>m.gender==="qadın").length,k:L.filter(m=>m.gender==="kişi").length,u:new Set(L.map(m=>m.unit)).size})}
   return _os.get(o.id)}
-const DOCK={prots:1,plens:1};
+const DOCK={prots:1,plens:1,contracts:1,events:1,orgs:1};
 /* əl ilə sıralama (sürüşdürməklə): qeydlərdə «ord» saxlanılır; sırası verilməmiş (yeni) qeydlər yuxarıda */
 const DRAGK={prots:1,plens:1};
 const regSort=kind=>{const C=REG[kind];if(!DRAGK[kind]||!DB[kind].some(x=>x.ord!=null))return C.sort;
@@ -697,7 +791,7 @@ function regHTML(kind){const C=REG[kind],S=UI[kind],list=DB[kind];
     return`<details class="units"><summary>Struktur bölmələr: ${U.size} · üzvlər: ${st.n} (qadın ${st.q}, kişi ${st.k})</summary><ul>${[...U].sort((a,b)=>b[1]-a[1]).map(([u,n])=>`<li>${esc(u)} — <b>${n}</b></li>`).join("")}</ul></details>`})():"";
   const unmatched=kind==="orgs"?active().filter(m=>!memOrg(m)):[];
   return`<datalist id="memList">${active().map(m=>`<option value="${esc(m.name)}">`).join("")}</datalist><div class="split">
-  <section class="card${ed&&!DOCK[kind]?" printable":""}${ed&&DOCK[kind]?" has-doc":""}" data-ptitle="${esc(C.one)}">${ed&&DOCK[kind]?`<button class="doc-btn" type="button" data-docview="${kind}:${ed.id}" title="Yalnız nömrə, tarix, gündəlik və qərarlar — ayrıca səhifədə">📄 Səhifədə aç</button>`:""}<h2>${ed?C.one:"Yeni: "+C.one.toLocaleLowerCase("az")}</h2>
+  <section class="card${ed&&!DOCK[kind]?" printable":""}${ed&&DOCK[kind]?" has-doc":""}" data-ptitle="${esc(C.one)}">${ed&&DOCK[kind]?`<button class="doc-btn" type="button" data-docview="${kind}:${ed.id}" title="${kind==="prots"||kind==="plens"?"Yalnız nömrə, tarix, gündəlik və qərarlar — ayrıca səhifədə":"Qeydin məlumatları — ayrıca səhifədə"}">📄 Səhifədə aç</button>`:""}<h2>${ed?C.one:"Yeni: "+C.one.toLocaleLowerCase("az")}</h2>
     <div class="fld top-files"><label>Fayllar${ed&&(ed.files||[]).length?` (${ed.files.length})`:""}</label>${filesHTML(kind,ed)}</div>
     <form class="entry" id="rForm" novalidate>${C.fields.map(fld).join("")}${extra}
       ${kind==="orgs"?(ed?`<div class="fld noweb"><label>Bu təşkilatın üzvləri</label><div class="form-actions"><button class="btn" type="button" id="oImp">Üzvlərini Excel-dən yüklə</button><input type="file" id="oFile" accept=".xlsx,.xls" hidden>${orgStat(ed).n?`<button class="btn ghost" type="button" id="oShow">Siyahıya bax (${orgStat(ed).n})</button>`:""}</div>
@@ -965,7 +1059,18 @@ function decisionsFrom(t){const L=String(t||"").split(/\r?\n/),out=[];let on=fal
     if(!on){if(/^(QƏRARAALIR|QƏRARAALINIR|QƏRARALIR|QƏRARVERIR|QƏRARVERDI)/.test(k))on=true;continue}
     if(/^(QƏRARQƏBULOLUNUR|QƏRARQƏBULEDILDI|ICLASINSƏDRI|ICLASSƏDRI|SƏDR|KATIB|IMZA)/.test(k))break;out.push(l)}
   return out.join("\n").trim()}
+/* Müqavilə, tədbir, ilk təşkilat: doldurulmuş xanalar A4 səhifədə */
+function docRecView(kind,o){const C=REG[kind];const head=kind==="contracts"?`${o.type||"Müqavilə"}${o.no?" № "+o.no:""}`:kind==="events"?(o.title||"Tədbir"):(o.name||"İlk təşkilat");
+  const skip={type:1,no:1,keys:1,title:kind==="events",name:kind==="orgs"};
+  const rows=C.fields.filter(([k])=>!skip[k]&&String(o[k]||"").trim()).map(([k,l,t])=>`<div class="doc-s">${esc(l.replace(/\s*\*$/,"").replace(/\s*\(.*\)$/,""))}</div><p class="doc-t">${esc(t==="date"?dmy(o[k]):String(o[k]).trim())}</p>`).join("");
+  const st=kind==="contracts"?`<div class="doc-s">Vəziyyəti</div><p class="doc-t">${esc(ctState(o).t)}</p>`:"";
+  const v=document.createElement("div");v.id="docView";v.setAttribute("role","dialog");v.setAttribute("aria-label",C.one);
+  v.innerHTML=`<div class="doc-bar"><button class="btn primary noweb" type="button" id="docPrint">${PRINT_SVG}Çap et</button><button class="btn" type="button" id="docClose">✕ Bağla</button></div>
+  <div class="doc-page"><p class="doc-h">${esc(head.toLocaleUpperCase("az"))}</p>${rows}${st}</div>`;
+  document.body.appendChild(v);document.body.style.overflow="hidden";
+  v.querySelector("#docClose").onclick=closeDoc;v.querySelector("#docPrint").onclick=()=>printDoc(head);v.querySelector("#docClose").focus()}
 function docView(kind,id){const o=(DB[kind]||[]).find(x=>x.id===id);if(!o)return;closeDoc();
+  if(kind!=="prots"&&kind!=="plens"){docRecView(kind,o);return}
   const pl=kind==="plens",T=(t,l)=>`<div class="doc-s">${l}</div><p class="doc-t${t&&t.trim()?"":" empty"}">${t&&t.trim()?esc(t.trim()):"(yazılmayıb)"}</p>`;
   const v=document.createElement("div");v.id="docView";v.setAttribute("role","dialog");v.setAttribute("aria-label",pl?"Plenum":"Protokol");
   v.innerHTML=`<div class="doc-bar"><button class="btn primary noweb" type="button" id="docPrint">${PRINT_SVG}Çap et</button><button class="btn" type="button" id="docClose">✕ Bağla</button></div>
