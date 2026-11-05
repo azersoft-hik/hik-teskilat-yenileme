@@ -332,6 +332,14 @@ body.printing .print-target :is(table.reg,table.rep) tr.tot td,body.printing .pr
 body.printing .print-target .hb i,body.printing .print-target .bar i{background:var(--acc)!important}
 body.printing .print-target .retn,body.printing .print-target .retd{color:#C62828!important}
 }
+.gf-bar{margin-top:14px;padding:12px;border:1px dashed var(--line-strong);border-radius:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.gf-bar.ask{display:block;border-style:solid;border-color:var(--gold);background:var(--gold-soft)}
+.gf-bar .form-msg{flex-basis:100%}
+details.gf{border:1px solid var(--line);border-radius:10px;padding:0 12px;margin-top:12px}
+details.gf>summary{cursor:pointer;padding:10px 0;font-weight:600;color:var(--brand)}
+details.gf[open]{padding-bottom:14px;display:grid;gap:14px}
+[hidden]{display:none!important}
+@media print{.gf-bar,details.gf{display:none!important}}
 </style></head><body>
 <header class="top"><div class="wrap">
   <div class="top-row"><img class="mark logo" src="logo.png" alt="">

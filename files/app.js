@@ -1,5 +1,5 @@
 "use strict";
-const UI_VER=36; /* ekran hissəsinin versiyası — hər yeniləmədə artırılır */
+const UI_VER=37; /* ekran hissəsinin versiyası — hər yeniləmədə artırılır */
 /* ================= HİK-təşkilat — Həmkarlar İttifaqı rayon komitəsinin təşkilati işi ================= */
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -47,7 +47,7 @@ const ORG_ST=["Fəaliyyətdədir","Qoşulacaq","Rayon komitəsi"];
 const isRK=o=>o.state==="Rayon komitəsi";
 const orgActive=o=>!isRK(o)&&(o.state||"Fəaliyyətdədir")!=="Qoşulacaq";
 const BODY_ORDER=["Rayon komitəsinin üzvləri","Rəyasət Heyəti (İcrayə komitəsi)","Təftiş komissiyası","Maddi yardım üzrə komissiya","Gender bərabərliyi komissiyası","Əməyin mühafizəsi komissiyası","Gənclərlə iş üzrə komissiya","Fərdi əmək mübahisələri üzrə komissiya","Mədəni-kütləvi işlər üzrə komissiya","Hüquq məsələləri üzrə komissiya"];
-let DB={v:1,org:DEF_ORG,chair:"",mem:[],bodies:[],orgs:[],events:[],prots:[],plens:[],contracts:[]};
+let DB={v:1,org:DEF_ORG,chair:"",mem:[],bodies:[],orgs:[],events:[],prots:[],plens:[],contracts:[],letters:[]};
 const UI={tab:"home",mem:{view:"in",org:"",st:"",g:"",q:"",sel:null,draft:null},body:{sel:null,person:null},vet:{},
   orgs:{sel:null,q:""},events:{sel:null,q:"",y:""},prots:{sel:null,q:"",y:""},plens:{sel:null,q:"",y:""},contracts:{sel:null,q:"",y:""}};
 const HAS_API=!!window.api;
@@ -388,7 +388,196 @@ function bindDues(){const S=duesState(),go=m=>{S.m=m;render()};
     inp.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();inp.blur();all[idx+1]?.focus();all[idx+1]?.select()}}})}
 
 /* ================= render ================= */
-const TABS=[["home","Ümumi"],["mem","Üzvlər"],["bodies","Komitə və komissiyalar"],["orgs","İlk təşkilatlar"],["contracts","Müqavilələr"],["events","Tədbirlər planı"],["prots","Protokollar"],["settings","Parametrlər"]];
+
+/* ================= Ərizə və məktublar (HİK-hesabatdan köçürülüb, RB «Müraciətlərin reyestri» forması ilə) ================= */
+const GF_LET="e/1FAIpQLSc4bbSldYR4z6OYbSZpJAfgFivOU3pgUluSGwn01gjcNQRuqQ";
+const GFO={"KOM": ["Abşeron rayon komitəsi MİHİ", "Ağcabədi rayon komitəsi MİHİ", "Ağdam rayon komitəsi MİHİ", "Ağdaş rayon komitəsi MİHİ", "Ağstafa rayon komitəsi MİHİ", "Ağsu rayon komitəsi MİHİ", "Astara rayon komitəsi MİHİ", "Balakən rayon komitəsi MİHİ", "Bərdə rayon komitəsi MİHİ", "Beyləqan rayon komitəsi MİHİ", "Biləsuvar rayon komitəsi MİHİ", "Cəbrayıl rayon komitəsi MİHİ", "Cəlilabad rayon komitəsi MİHİ", "Daşkəsən rayon komitəsi MİHİ", "Füzuli rayon komitəsi MİHİ", "Gədəbəy rayon komitəsi MİHİ", "Gəncə şəhər komitəsi MİHİ", "Goranboy rayon komitəsi MİHİ", "Göyçay rayon komitəsi MİHİ", "Göygöl rayon komitəsi MİHİ", "Hacıqabul rayon komitəsi MİHİ", "İmişli rayon komitəsi MİHİ", "İsmayıllı rayon komitəsi MİHİ", "Kəlbəcər rayon komitəsi MİHİ", "Kürdəmir rayon komitəsi MİHİ", "Laçın rayon komitəsi MİHİ", "Lənkəran rayon komitəsi MİHİ", "Lerik rayon komitəsi MİHİ", "Masallı rayon komitəsi MİHİ", "Mingəçevir şəhər komitəsi MİHİ", "Naftalan şəhər komitəsi MİHİ", "Neftçala rayon komitəsi MİHİ", "Oğuz rayon komitəsi MİHİ", "Qax rayon komitəsi MİHİ", "Qazax rayon komitəsi MİHİ", "Qəbələ rayon komitəsi MİHİ", "Qobustan rayon komitəsi MİHİ", "Quba rayon komitəsi MİHİ", "Qubadlı rayon komitəsi MİHİ", "Qusar rayon komitəsi MİHİ", "Saatlı rayon komitəsi MİHİ", "Sabirabad rayon komitəsi MİHİ", "Şabran rayon komitəsi MİHİ", "Salyan rayon komitəsi MİHİ", "Şamaxı rayon komitəsi MİHİ", "Samux rayon komitəsi MİHİ", "Şəki şəhər komitəsi MİHİ", "Şəmkir rayon komitəsi MİHİ", "Şirvan şəhər komitəsi MİHİ", "Siyəzən rayon komitəsi MİHİ", "Sumqayıt şəhər komitəsi MİHİ", "Şuşa rayon komitəsi MİHİ", "Tərtər rayon komitəsi MİHİ", "Tovuz rayon komitəsi MİHİ", "Ucar rayon komitəsi MİHİ", "Xaçmaz rayon komitəsi MİHİ", "Xızı rayon komitəsi MİHİ", "Xocalı rayon komitəsi MİHİ", "Xocavənd rayon komitəsi MİHİ", "Yardımlı rayon komitəsi MİHİ", "Yevlax rayon komitəsi MİHİ", "Zaqatala rayon komitəsi MİHİ", "Zəngilan rayon komitəsi MİHİ", "Zərdab rayon komitəsi MİHİ"], "IQT": ["Abşeron_Xızı", "Gəncə_Daşkəsən", "Şəki_Zaqatala", "Lənkəran_Astara", "Quba_Xaçmaz", "Mərkəzi_Aran", "Qarabağ", "Şərqi_Zəngəzur", "Dağlıq_Şirvan", "Naxçıvan", "Bakı", "Qazax_Tovuz", "Mil_Muğan", "Şirvan_Salyan", "Qeyd_olunmayıb"], "RAY": ["Abşeron", "Ağcabədi", "Ağdam", "Ağdərə", "Ağdaş", "Ağstafa", "Ağsu", "Astara", "Babək", "Balakən", "Bərdə", "Beyləqan", "Biləsuvar", "Binəqədi", "Cəbrayıl", "Culfa", "Cəlilabad", "Daşkəsən", "Füzuli", "Goranboy", "Göyçay", "Göygöl", "Gədəbəy", "Gəncə", "Hacıqabul", "Xaçmaz", "Xankəndi", "Xocalı", "Xocavənd", "Xırdalan", "Xızı", "Xətai", "Xəzər", "İmişli", "İsmayıllı", "Kəlbəcər", "Kəngərli", "Kürdəmir", "Laçın", "Lerik", "Lənkəran", "Masallı", "Mingəçevir", "Naftalan", "Naxçıvan", "Neftçala", "Nizami", "Nərimanov", "Nəsimi", "Oğuz", "Ordubad", "Pirallahı", "Qax", "Qazax", "Qaradağ", "Qobustan", "Quba", "Qubadlı", "Qusar", "Qəbələ", "Sabirabad", "Sabunçu", "Saatlı", "Salyan", "Samux", "Siyəzən", "Sumqayıt", "Suraxanı", "Sədərək", "Şabran", "Şahbuz", "Şamaxı", "Şirvan şəhəri", "Şuşa", "Şəki", "Şəmkir", "Şərur", "Tovuz", "Tərtər", "Ucar", "Yardımlı", "Yasamal", "Yevlax", "Zaqatala", "Zəngilan", "Zərdab"], "L_EXEC": ["Məlumat üçün", "İcra üçün"], "L_TYPE": ["Ərizə", "Şikayət", "Təklif"], "L_FORM": ["İlkin", "Təkrar", "Eyni məzmunlu"], "L_APPL": ["Vətəndaş (Üzv olan)", "Vətəndaş (Üzv olmayan)", "Üzvlük müəyyən deyil", "Digər"], "L_GOV": ["Az.Resp. PA.", "Az.Resp. MM.", "Az.Resp. NK.", "Az.Resp. Konst.Məhkəmə.", "Az.Resp. Ali Məhkəmə", "Digər təşkilatlardan", "AHİK-dən", "Vətəndaşdan"], "L_SOC": ["Əlil", "Şəhid ailəsi", "Qazi", "Yoxdur", "Müəyyən olunmamış"], "L_TOPIC": ["Əmək_hüquqlarının_pozulması", "Maddi_yardımın_verilməsi", "Yollayışların_verilməsi", "Əmək_münasibətləri_ilə_bağlı", "Üzvlüklə_bağlı", "Tabe_təşkilatların_fəaliyyəti_ilə_bağlı", "Üzv_təşkilatların_fəaliyyəti_ilə_bağlı", "Digər"], "L_CHAN": ["Məktub", "Elektron məktub", "Telefon (Q/X)", "Teleqram", "Faks", "Digər", "Poçt (Kuryer)", "Əlbəəl", "RSD"], "L_RES": ["Həll olunub", "Qismən təmin edilib", "Rədd edilib (əsassız sayılıb)", "Müvafiq izahat verilib", "Dövlət proqramlarında icrası nəzərdə tutulub", "Aidiyyəti üzrə müraciət etmələri tövsiyə olunmuş", "Baxılmaq üçün aidiyyəti təşkilatlara göndərilib", "Baxılmamış saxlanılıb", "İcradadır"], "L_REDIR": ["Dövlət Miqrasiya Xidməti", "Elm və Təhsil Nazirliyi", "Mədəniyyət Nazirliyi", "Milli Arxiv İdarəsi", "Müdafiə Sənayesi Nazirliyi", "Daxili İşlər Nazirliyi", "Diasporla İş üzrə Dövlət Komitəsi", "Dini Qurumlarla İş üzrə Dövlət Komitəsi", "Dövlət Gömrük Komitəsi", "Dövlət Sərhəd Xidməti", "Dövlət Statistika Komitəsi", "Dövlət Şəhərsalma və Arxitektura Komitəsi", "Dövlət Təhlükəsizliyi Xidməti", "Ədliyyə Nazirliyi", "Ekologiya və Təbii Sərvətlər Nazirliyi", "Əmək və Əhalinin Sosial Müdafiəsi Nazirliyi", "Energetika Nazirliyi", "Gənclər və İdman Nazirliyi", "Kənd Təsərrüfatı Nazirliyi", "MaliyyəNazirliyi", "MüdafiəNazirliyi", "Qaçqınlarınvə Məcburi Köçkünlərin işləri Üzrə Dövlət Komitəsi", "QidaTəhlükəsizliyiAgentliyi", "Rəqəmsal İnkişaf və Nəqliyyat Nazirliyi", "Səfərbərlik və Hərbi Xidmətə Çağırış Üzrə Dövlət Xidməti", "Səhiyyə Nazirliyi", "Xarici İşlər Nazirliyi", "Xüsusi Dövlət Mühafizə Xidməti", "Fövqaladə Hallar Nazirliyi", "Azərbaycan Dövlət Su Ehtiyatları Agentliyi", "Dövlət Vergi Xidməti", "Kiçikvə Orta Biznesin İnkişafı Agentliyi", "Əmlak Məsələləri Dövlət Xidməti", "Baş Prokurorluq", "Dövlət Reklam Agentliyi", "İcbari Tibbi Sığorta üzrə Dövlət Agentliyi", "TƏBİB", "Antiinhisar və İstehlak Bazarına Nəzarət Dövlət Agentliyi", "Bakı Şəhər İcra Hakimiyyəti", "Mərkəzi Bank", "Digər"]};
+const GF_DEF={kom:"Şəmkir rayon komitəsi MİHİ",iqt:"Qazax_Tovuz",ray:"Şəmkir",resp:""};
+const gfCfg=()=>({...GF_DEF,...(DB.gf||{})});
+const YN=["Bəli","Xeyr"];
+const L_CHAN_OPTS=[["Əlbəəl","Əlbəəl"],["Elektron məktub","Elektron"]];
+const gopt=(arr,v,ph)=>(ph!==undefined?`<option value="">${esc(ph)}</option>`:"")+arr.map(x=>`<option${x===v?" selected":""}>${esc(x)}</option>`).join("");
+function gfLink(pairs){const p=new URLSearchParams();p.set("usp","pp_url");for(const[k,v]of pairs){if(v===undefined||v===null||v==="")continue;p.append("entry."+k,String(v))}
+  return`https://docs.google.com/forms/d/${GF_LET}/viewform?${p.toString()}`}
+function gfOpenUrl(url){try{if(window.api&&window.api.openForm){window.api.openForm(url);return}}catch(e){}window.open(url,"_blank","noopener")}
+const gfBadge=x=>x.gfSent?`<span class="st done" title="RB formasına göndərilib">RB ✓ ${dmy(x.gfSent)}</span>`:`<span class="st pend" title="RB formasına hələ göndərilməyib">RB —</span>`;
+const gfMatch=(x,f)=>!f||(f==="sent"?!!x.gfSent:!x.gfSent);
+function gfToggle(f){if(!f)return;f.querySelectorAll("[data-show]").forEach(el=>{const[k,v]=el.dataset.show.split("=");const inp=f.elements[k];el.hidden=!inp||inp.value!==v})}
+function gfNeed(m){return(v,l)=>{if(v===""||v===undefined||v===null)m.push(l)}}
+const L_RES_MAP={"Cavablandırılıb":"Müvafiq izahat verilib","Maddi yardım verildi":"Həll olunub","İcraya göndərildi":"Baxılmaq üçün aidiyyəti təşkilatlara göndərilib","Rədd edildi":"Rədd edilib (əsassız sayılıb)","Baxılır":"İcradadır","Məlumat üçün":"Müvafiq izahat verilib"};
+function letAuto(o){
+  const M=memByKey(o.name);const st=o.status||"";
+  const fromKind=o.fromKind||(o.name?"Vətəndaş":(o.from?"Təşkilat":""));
+  return{exec:o.exec||(st==="Məlumat üçün"?"Məlumat üçün":"İcra üçün"),gtype:o.gtype||(o.type==="Şikayət"?"Şikayət":"Ərizə"),
+    ansNo:o.ansNo||"",extNo:o.extNo||"",fromKind,aform:o.aform||"İlkin",sameNo:o.sameNo||"",
+    appl:o.appl||(M?(M.out?"Vətəndaş (Üzv olmayan)":"Vətəndaş (Üzv olan)"):(o.name?"Üzvlük müəyyən deyil":"Digər")),
+    gov:o.gov||(fromKind==="Vətəndaş"?"Vətəndaşdan":fromKind==="Təşkilat"?"Digər təşkilatlardan":""),
+    soc:o.soc||"Yoxdur",topic:o.topic||(st==="Maddi yardım verildi"||o.letterAid?"Maddi_yardımın_verilməsi":""),
+    chan:o.chan||"Əlbəəl",deadline:o.deadline||"",extended:o.extended||"Xeyr",extDate:o.extDate||"",
+    executed:o.executed||(st&&st!=="Baxılır"?"Bəli":"Xeyr"),execDate:o.execDate||o.answerDate||"",
+    delayed:o.delayed||"Xeyr",delayReason:o.delayReason||"",executor:o.executor||gfCfg().resp||"",
+    result:o.result||L_RES_MAP[st]||"",redir:o.redir||(st==="İcraya göndərildi"?"Bəli":"Xeyr"),redirOrg:o.redirOrg||"",gnote:o.gnote||""}}
+function letBuild(o0){const c=gfCfg(),o={...o0,...letAuto(o0)},m=[],need=gfNeed(m);
+    need(o.date,"daxil olma tarixi");need(o.no,"sənədin №");need(o.exec,"icra xarakteri");need(o.gtype,"formadakı növü");need(o.fromKind,"kimdən daxil olub");
+    if(o.fromKind==="Təşkilat")need(o.from,"təşkilatın adı («Kim tərəfindən»)");
+    if(o.fromKind==="Vətəndaş"){need(o.name,"vətəndaşın A.S.A.");need(o.work,"vətəndaşın iş yeri")}
+    need(o.aform,"müraciətin forması");if(o.aform==="Eyni məzmunlu")need(o.sameNo,"ilkin sənədin №");
+    need(o.appl,"müraciət edən haqqında");need(o.gov,"göndərən orqan");need(o.soc,"sosial status");need(o.topic,"mövzu");need(o.chan,"daxil olduğu kanal");
+    need(o.summary,"qısa məzmun");if(o.delayed==="Bəli")need(o.delayReason,"gecikmənin səbəbi");need(o.executor,"icraçı");need(o.result,"icra nəticəsi");
+    const P=[[1261436718,c.kom],[541207369,"Bəli"],[1836694870,o.date],[1184053138,o.exec],[1796112804,o.no],[1171862990,o.ansNo],[1858809159,o.extNo],
+      [508904544,o.gtype],[895438845,o.fromKind]];
+    if(o.fromKind==="Təşkilat")P.push([959870274,o.from]);else P.push([1805540356,o.name],[1117940643,o.work]);
+    P.push([839151805,o.aform]);if(o.aform==="Eyni məzmunlu")P.push([1870792035,o.sameNo]);
+    P.push([1805195862,o.appl],[1355920833,o.gov],[1968140404,o.soc],[536973363,o.topic],[1803198737,c.iqt],[496982106,c.ray],[1465693307,o.chan],
+      [940296090,o.summary],[1907193013,o.deadline],[1035690461,o.extended]);
+    if(o.extended==="Bəli")P.push([422074987,o.extDate]);
+    P.push([1645583521,o.executed]);if(o.executed==="Bəli")P.push([1845496876,o.execDate]);
+    P.push([238999008,o.delayed]);if(o.delayed==="Bəli")P.push([1878988137,o.delayReason]);
+    P.push([570982102,o.executor],[365151360,o.result],[1694223730,o.redir]);if(o.redir==="Bəli")P.push([1875116610,o.redirOrg]);
+    P.push([576664805,o.gnote]);
+    return{url:gfLink(P),miss:m}}
+function letGfHTML(o0){const o={...o0,...letAuto(o0)};
+  return`<details class="gf" open><summary>RB «Müraciətlərin reyestri» üçün</summary>
+    <div class="row2"><div class="fld"><label for="l-exec">İcra xarakteri</label><select id="l-exec" name="exec">${gopt(GFO.L_EXEC,o.exec)}</select></div>
+      <div class="fld"><label for="l-gtype">Formadakı növü</label><select id="l-gtype" name="gtype">${gopt(GFO.L_TYPE,o.gtype)}</select></div></div>
+    <div class="row2"><div class="fld"><label for="l-extno">Sənədin üzərindəki №</label><input id="l-extno" name="extNo" value="${esc(o.extNo)}"></div>
+      <div class="fld"><label for="l-ansno">Cavab sənədinin №</label><input id="l-ansno" name="ansNo" value="${esc(o.ansNo)}"></div></div>
+    <div class="fld"><label for="l-fromkind">Kimdən daxil olub</label><select id="l-fromkind" name="fromKind">${gopt(["Vətəndaş","Təşkilat"],o.fromKind,"— seçin —")}</select>
+      <span class="help" data-show="fromKind=Təşkilat">Təşkilatın adı yuxarıdakı «Kim tərəfindən» sahəsindən götürülür.</span>
+      <span class="help" data-show="fromKind=Vətəndaş">Vətəndaşın A.S.A. və iş yeri yuxarıdakı sahələrdən götürülür.</span></div>
+    <div class="fld"><label for="l-aform">Müraciətin forması</label><select id="l-aform" name="aform">${gopt(GFO.L_FORM,o.aform)}</select></div>
+    <div class="fld" data-show="aform=Eyni məzmunlu"><label for="l-sameno">İlkin daxil olan sənədin №</label><input id="l-sameno" name="sameNo" value="${esc(o.sameNo)}"></div>
+    <div class="fld"><label for="l-appl">Müraciət edən haqqında</label><select id="l-appl" name="appl">${gopt(GFO.L_APPL,o.appl)}</select></div>
+    <div class="fld"><label for="l-gov">Müraciəti göndərən orqan</label><select id="l-gov" name="gov">${gopt(GFO.L_GOV,o.gov,"— seçin —")}</select></div>
+    <div class="row2"><div class="fld"><label for="l-soc">Sosial statusu</label><select id="l-soc" name="soc">${gopt(GFO.L_SOC,o.soc)}</select></div>
+      <div class="fld"><label for="l-chan">Daxil olduğu kanal</label><select id="l-chan" name="chan">${L_CHAN_OPTS.map(([v,t])=>`<option value="${esc(v)}"${v===o.chan?" selected":""}>${esc(t)}</option>`).join("")}${o.chan&&!L_CHAN_OPTS.some(([v])=>v===o.chan)?`<option selected>${esc(o.chan)}</option>`:""}</select></div></div>
+    <div class="fld"><label for="l-topic">Mövzusu</label><select id="l-topic" name="topic">${gopt(GFO.L_TOPIC,o.topic,"— seçin —")}</select></div>
+    <div class="row2"><div class="fld"><label for="l-deadline">Son icra tarixi</label><input id="l-deadline" name="deadline" type="date" value="${esc(o.deadline)}"></div>
+      <div class="fld"><label for="l-extended">İcra uzadılıb?</label><select id="l-extended" name="extended">${gopt(YN,o.extended)}</select></div></div>
+    <div class="fld" data-show="extended=Bəli"><label for="l-extdate">Uzadılmış icra tarixi</label><input id="l-extdate" name="extDate" type="date" value="${esc(o.extDate)}"></div>
+    <div class="row2"><div class="fld"><label for="l-executed">İcra olunub?</label><select id="l-executed" name="executed">${gopt(YN,o.executed)}</select></div>
+      <div class="fld" data-show="executed=Bəli"><label for="l-execdate">İcra tarixi</label><input id="l-execdate" name="execDate" type="date" value="${esc(o.execDate)}"></div></div>
+    <div class="fld"><label for="l-delayed">İcra gecikib?</label><select id="l-delayed" name="delayed">${gopt(YN,o.delayed)}</select></div>
+    <div class="fld" data-show="delayed=Bəli"><label for="l-delayr">Gecikmənin səbəbi</label><input id="l-delayr" name="delayReason" value="${esc(o.delayReason)}"></div>
+    <div class="fld"><label for="l-executor">İcraçının A.S.A.</label><input id="l-executor" name="executor" value="${esc(o.executor)}"></div>
+    <div class="fld"><label for="l-result">İcra nəticəsi</label><select id="l-result" name="result">${gopt(GFO.L_RES,o.result,"— seçin —")}</select></div>
+    <div class="fld"><label for="l-redir">Başqa quruma yönləndirilib?</label><select id="l-redir" name="redir">${gopt(YN,o.redir)}</select></div>
+    <div class="fld" data-show="redir=Bəli"><label for="l-redirorg">Yönləndirilmiş qurum</label><select id="l-redirorg" name="redirOrg">${gopt(GFO.L_REDIR,o.redirOrg,"— seçin —")}</select></div>
+    <div class="fld"><label for="l-gnote">Qeyd (RB üçün)</label><input id="l-gnote" name="gnote" value="${esc(o.gnote)}"></div>
+  </details>`}
+const LET_GF_KEYS=["exec","gtype","extNo","ansNo","fromKind","aform","sameNo","appl","gov","soc","chan","topic","deadline","extended","extDate","executed","execDate","delayed","delayReason","executor","result","redir","redirOrg","gnote"];
+const readKeys=(fd,keys)=>Object.fromEntries(keys.map(k=>[k,(fd.get(k)??"").toString().trim()]));
+const LTYPES=["Ərizə","Məktub","Şikayət","Müraciət","Digər"];
+const LSTAT=["Baxılır","Cavablandırılıb","Maddi yardım verildi","İcraya göndərildi","Rədd edildi","Məlumat üçün"];
+const LS={edit:null,confirm:null,draft:null,q:"",st:"",rb:"",pend:false};
+const letAll=()=>DB.letters||(DB.letters=[]);
+function nextNo(){const y=new Date().getFullYear();const nums=letAll().filter(x=>(x.date||"").startsWith(String(y))).map(x=>parseInt(String(x.no||"").replace(/\D.*$/,""))).filter(n=>!isNaN(n));return String((nums.length?Math.max(...nums):0)+1)}
+const lAge=b=>{const a=ageOf(b);return a!=null&&a>=0&&a<130?a+" yaş":""};
+const statCls=s=>s==="Baxılır"?"pend":s==="Rədd edildi"?"rej":s==="Məlumat üçün"?"info":"done";
+function letBar(rec){
+  if(LS.pend===rec.id)return`<div class="gf-bar ask"><b>Forma brauzerdə açıldı.</b> Səhifələri «Далее» ilə keçib yoxlayın, sonda «Отправить» düyməsini basın. Göndərdinizmi?
+    <div class="form-actions" style="margin-top:10px"><button class="btn primary" type="button" data-gf-yes>Bəli, göndərdim</button><button class="btn" type="button" data-gf-open>Formanı yenidən aç</button><button class="btn ghost" type="button" data-gf-no>Hələ yox</button></div><div class="form-msg" data-gf-msg></div></div>`;
+  return`<div class="gf-bar">${rec.gfSent?`<span class="st done">RB formasına göndərilib: ${dmy(rec.gfSent)}</span>`:`<span class="st pend">RB formasına göndərilməyib</span>`}
+    <button class="btn" type="button" data-gf-open>${rec.gfSent?"Formanı yenidən aç":"RB formasında aç"}</button>${rec.gfSent?`<button class="btn ghost" type="button" data-gf-undo>İşarəni götür</button>`:""}<div class="form-msg" data-gf-msg></div></div>`}
+function lettersHTML(){const all=letAll();const ed=LS.edit&&all.find(x=>x.id===LS.edit);const today=todayISO();
+  const o=ed||LS.draft||{date:today,no:nextNo(),type:"Ərizə",from:"",name:"",fin:"",birth:"",work:"",pos:"",summary:"",status:"Baxılır",answerDate:""};
+  let list=all.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(parseInt(b.no)||0)-(parseInt(a.no)||0));
+  if(LS.st)list=list.filter(x=>x.status===LS.st);list=list.filter(x=>gfMatch(x,LS.rb));
+  if(LS.q){const s=lc(LS.q);list=list.filter(x=>lc([x.no,x.from,x.name,x.fin,x.work,x.pos,x.summary].join(" ")).includes(s))}
+  const pend=all.filter(x=>x.status==="Baxılır").length;
+  const opt=(arr,v)=>arr.map(x=>`<option${x===v?" selected":""}>${esc(x)}</option>`).join("");
+  const body=list.length?list.map(x=>`<tr tabindex="0" data-let="${x.id}" class="${x.id===LS.edit?"sel":""}">
+      <td class="num"><b>${esc(x.no||"—")}</b><div class="mut">${dmy(x.date)}</div></td>
+      <td>${esc(x.name||x.from||"—")}<div class="mut">${esc(x.type||"")}${x.work?" · "+esc(x.work):""}${x.pos?" · "+esc(x.pos):""}${x.from&&x.name&&x.from!==x.name?" · göndərən: "+esc(x.from):""}</div>${x.summary?`<div class="mut">${esc(x.summary.length>90?x.summary.slice(0,90)+"…":x.summary)}</div>`:""}</td>
+      <td><span class="st ${statCls(x.status)}">${esc(x.status||"")}</span><div style="margin-top:4px">${gfBadge(x)}</div></td></tr>`).join("")
+    :`<tr><td colspan="3"><div class="empty"><b>${LS.q||LS.st||LS.rb?"Uyğun sənəd yoxdur":"Hələ qeydə alınmış sənəd yoxdur"}</b>${LS.q||LS.st||LS.rb?"":"Soldakı formu doldurub «Qeydə al» düyməsini basın."}</div></td></tr>`;
+  return`<datalist id="memList">${active().map(m=>`<option value="${esc(m.name)}">`).join("")}</datalist><div class="split">
+  <section class="card"><h2>${ed?"Sənədi düzəlt":"Daxil olan sənəd"}${ed?'<span class="badge">redaktə</span>':""}</h2>
+    <p class="hint">Ərizə, məktub və müraciətlərin qeydiyyatı.</p>
+    <form class="entry" id="lentry" novalidate>
+      <div class="row2"><div class="fld"><label for="l-date">Daxil olma tarixi *</label><input id="l-date" name="date" type="date" value="${esc(o.date)}"></div>
+        <div class="fld"><label for="l-type">Növü</label><select id="l-type" name="type">${opt(LTYPES,o.type)}</select></div></div>
+      <div class="fld"><label for="l-no">Sənədin № *</label><input id="l-no" name="no" value="${esc(o.no)}" autocomplete="off" placeholder="Məs.: V/43/9/26"></div>
+      <div class="fld"><label for="l-from">Kim tərəfindən</label><input id="l-from" name="from" value="${esc(o.from)}" placeholder="Şəxs, təşkilat və ya qurum"></div>
+      <div class="fld"><label for="l-name">Soyadı, adı, ata adı</label><input id="l-name" name="name" list="memList" value="${esc(o.name)}" autocomplete="off"></div>
+      <div class="row2"><div class="fld"><label for="l-fin">FİN</label><input id="l-fin" name="fin" value="${esc(o.fin)}" maxlength="7" autocomplete="off" spellcheck="false" style="text-transform:uppercase"></div>
+        <div class="fld"><label for="l-birth">Doğum tarixi</label><input id="l-birth" name="birth" type="date" value="${esc(o.birth)}"><span class="help" id="l-age">${lAge(o.birth)}</span></div></div>
+      <div class="fld"><label for="l-work">İş yeri</label><input id="l-work" name="work" value="${esc(o.work)}"></div>
+      <div class="fld"><label for="l-pos">Vəzifəsi</label><input id="l-pos" name="pos" value="${esc(o.pos)}" placeholder="Məs.: baş müəllim, laborant"></div>
+      <div class="fld"><label for="l-summary">Qısa məzmun</label><textarea id="l-summary" name="summary" rows="3">${esc(o.summary)}</textarea></div>
+      <div class="row2"><div class="fld"><label for="l-status">Nəticə</label><select id="l-status" name="status">${opt(LSTAT,o.status)}</select></div>
+        <div class="fld"><label for="l-ans">Cavab tarixi</label><input id="l-ans" name="answerDate" type="date" value="${esc(o.answerDate)}"></div></div>
+      ${letGfHTML(o)}
+      <div class="form-msg" id="lmsg"></div>
+      <div class="form-actions"><button class="btn primary" type="submit">${ed?"Yadda saxla":"Qeydə al"}</button>
+        ${ed?`<button class="btn" type="button" id="lAid" title="Nəticəni «Maddi yardım verildi» edir. Yardımın özü HİK-hesabatda yazılır.">Maddi yardım ver</button><button class="btn" type="button" id="lCancel">Ləğv et</button><button class="btn ${LS.confirm===LS.edit?"danger":"ghost"}" type="button" id="lDel">${LS.confirm===LS.edit?"Silinsin? Təsdiqlə":"Sil"}</button>`:""}</div>
+    </form>${ed?letBar(ed):'<div class="gf-bar"><span class="mut">Qeydi yadda saxladıqdan sonra onu RB formasında aça biləcəksiniz.</span></div>'}</section>
+  <section class="card printable" data-ptitle="Ərizə və məktubların qeydiyyat jurnalı"><h2>Qeydiyyat jurnalı</h2>
+    <div class="reg-tools" style="margin-top:10px"><select id="lst" aria-label="Nəticə"><option value="">Bütün nəticələr</option>${LSTAT.map(x=>`<option${x===LS.st?" selected":""}>${esc(x)}</option>`).join("")}</select>
+      <select id="lRb" aria-label="RB statusu"><option value=""${LS.rb?"":" selected"}>RB: hamısı</option><option value="todo"${LS.rb==="todo"?" selected":""}>RB-yə göndərilməyib</option><option value="sent"${LS.rb==="sent"?" selected":""}>RB-yə göndərilib</option></select>
+      <input id="lq" class="srch" type="search" placeholder="Ad, FİN, № və ya iş yeri…" value="${esc(LS.q)}" aria-label="Axtar"></div>
+    <div class="reg-tools"><button class="btn" type="button" id="lExp">Excel-ə çıxar</button><button class="btn" type="button" id="lImp" title="HİK-hesabatın ehtiyat nüsxəsindən (.json) sənədləri və RB dəyərlərini götürür">📥 HİK-hesabatdan köçür</button></div>
+    <div class="sum">${list.length} sənəd${pend?` · <b>${pend}</b> baxılır`:""}</div>
+    <div class="tbl-wrap"><table class="reg"><thead><tr><th class="num">№ / tarix</th><th>Kimdən</th><th>Nəticə</th></tr></thead><tbody>${body}</tbody></table></div>
+    <p class="mut">Hesabat dövründə heç bir sənəd daxil olmayıbsa: <button class="btn ghost" type="button" id="lNone">RB formasını «Xeyr» cavabı ilə aç</button></p>
+    <details class="gf"><summary>RB forması üçün ayarlar</summary>
+      <div class="fld"><label for="g-kom">Rayon / şəhər komitəsi</label><select id="g-kom">${gopt(GFO.KOM,gfCfg().kom)}</select></div>
+      <div class="row2"><div class="fld"><label for="g-iqt">İqtisadi rayon</label><select id="g-iqt">${gopt(GFO.IQT,gfCfg().iqt)}</select></div>
+        <div class="fld"><label for="g-ray">Rayon / şəhər</label><select id="g-ray">${gopt(GFO.RAY,gfCfg().ray)}</select></div></div>
+      <div class="fld"><label for="g-resp">Cavabdeh şəxs / icraçı (A.S.A.)</label><input id="g-resp" value="${esc(gfCfg().resp)}"></div>
+      <div class="form-actions"><button class="btn primary" type="button" id="gSave">Yadda saxla</button></div></details>
+  </section></div>`}
+function readLetter(){const fd=new FormData($("#lentry"));const g=k=>(fd.get(k)??"").toString().trim();
+  return{date:g("date"),no:g("no"),type:g("type"),from:g("from").replace(/\s+/g," "),name:g("name").replace(/\s+/g," "),fin:normFin(g("fin")),birth:g("birth"),work:g("work"),pos:g("pos").replace(/\s+/g," "),summary:g("summary"),status:g("status"),answerDate:g("answerDate"),...readKeys(fd,LET_GF_KEYS)}}
+function letPut(rec){const A=letAll(),i=A.findIndex(x=>x.id===rec.id);i>=0?A[i]=rec:A.push(rec)}
+const letSheet=()=>{const L=letAll().slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")||(parseInt(a.no)||0)-(parseInt(b.no)||0));
+  return{name:"Ərizə və məktublar",title:"Daxil olan ərizə və məktubların qeydiyyat jurnalı",head:["№","Daxil olma tarixi","Sənədin №","Növü","Kim tərəfindən","Soyadı, adı, ata adı","FİN","Doğum tarixi","İş yeri","Vəzifəsi","Qısa məzmun","Nəticə","Cavab tarixi","RB-yə göndərilib"],
+    rows:L.map((x,i)=>[i+1,dmy(x.date),x.no||"",x.type||"",x.from||"",x.name||"",x.fin||"",dmy(x.birth),x.work||"",x.pos||"",x.summary||"",x.status||"",dmy(x.answerDate),dmy(x.gfSent)]),text:[2,6],w:[5,12,10,10,24,30,9,12,28,22,40,20,12,12]}};
+/* HİK-hesabatın ehtiyat faylından: sənədlər id-yə görə birləşir, təkrar köçürmə ikiqat yazmır */
+async function letImport(){if(!guard())return;if(!HAS_API){toast("Bu imkan yalnız kompüter proqramında işləyir");return}
+  const t=await window.api.openFile();if(!t)return;let d;try{d=JSON.parse(t)}catch(e){toast("Fayl oxunmadı");return}
+  const src=Array.isArray(d&&d.letters)?d.letters:null;if(!src||!d.form){toast("Bu, HİK-hesabatın ehtiyat faylı deyil");return}
+  const A=letAll(),have=new Set(A.map(x=>x.id)),neu=src.filter(x=>x&&x.id&&!have.has(x.id));
+  if(!confirm(`Faylda ${src.length} sənəd var. Yeni əlavə olunacaq: ${neu.length}. Artıq köçürülmüş sənədlərə toxunulmur. Davam edilsin?`))return;
+  window.api.snapshot("erize-kocurulmeden-once");A.push(...neu);
+  const g=d.form.gf||{};if(!DB.gf){DB.gf={};for(const k of["kom","iqt","ray","resp"])if(g[k])DB.gf[k]=g[k]}
+  commit(`${neu.length} sənəd köçürüldü`)}
+function bindLetters(){const f=$("#lentry");gfToggle(f);f.addEventListener("change",()=>gfToggle(f));
+  $("#l-name").addEventListener("input",e=>{const m=memByKey(e.target.value);if(!m)return;
+    const set=(id,v)=>{const el=$(id);if(el&&v)el.value=v};set("#l-fin",m.fin);set("#l-birth",m.birth);set("#l-work",m.unit);set("#l-pos",m.pos);
+    if(m.birth)$("#l-age").textContent=lAge(m.birth);if(!LS.edit)LS.draft=readLetter()});
+  f.addEventListener("input",e=>{if(!LS.edit)LS.draft=readLetter();if(e.target.name==="birth")$("#l-age").textContent=lAge(e.target.value);if(e.target.name==="fin"){const p=e.target.selectionStart;e.target.value=e.target.value.toUpperCase();try{e.target.setSelectionRange(p,p)}catch(x){}}});
+  f.addEventListener("submit",e=>{e.preventDefault();const o=readLetter(),m=$("#lmsg");const err=t=>{m.className="form-msg err";m.textContent=t};
+    const miss=[];if(!o.date)miss.push("daxil olma tarixi");if(!o.no)miss.push("sənədin №");if(!o.from&&!o.name)miss.push("kim tərəfindən və ya S.A.A.");
+    if(miss.length){err("Doldurun: "+miss.join(", "));return}
+    if(o.fin&&!/^[0-9A-Z]{7}$/.test(o.fin)){err("FİN 7 hərf və rəqəmdən ibarət olmalıdır.");return}
+    if(o.birth&&o.birth>todayISO()){err("Doğum tarixi gələcəkdə ola bilməz.");return}
+    const dup=letAll().find(x=>x.id!==LS.edit&&x.no===o.no&&(x.date||"").slice(0,4)===o.date.slice(0,4));
+    if(dup&&f.dataset.dupOk!==o.no){f.dataset.dupOk=o.no;err(`№ ${o.no} bu il artıq istifadə olunub. Yenə də saxlamaq üçün düyməni bir daha basın.`);return}
+    const prev=LS.edit&&letAll().find(x=>x.id===LS.edit);const rec={...(prev||{}),...o,id:LS.edit||newId(),updatedAt:new Date().toISOString()};
+    if(!guard())return;letPut(rec);const was=!!LS.edit;LS.edit=rec.id;LS.confirm=null;LS.draft=null;commit(was?"Dəyişiklik yadda saxlandı":`№ ${rec.no} qeydə alındı`)});
+  $("#lCancel")?.addEventListener("click",()=>{LS.edit=null;LS.confirm=null;LS.pend=false;render()});
+  $("#lDel")?.addEventListener("click",()=>{if(LS.confirm!==LS.edit){LS.confirm=LS.edit;render();return}DB.letters=letAll().filter(x=>x.id!==LS.edit);LS.edit=null;LS.confirm=null;LS.pend=false;commit("Sənəd silindi")});
+  $("#lAid")?.addEventListener("click",()=>{const L=letAll().find(x=>x.id===LS.edit);if(!L)return;letPut({...L,status:"Maddi yardım verildi",letterAid:1,answerDate:L.answerDate||todayISO()});
+    commit("«Maddi yardım verildi» yazıldı. Yardımı HİK-hesabat → Maddi yardım bölməsində həmin adla yazın: № və tarix orada özü dolacaq.")});
+  const root=$("#view"),gmsg=t=>{const e=root.querySelector("[data-gf-msg]");if(e){e.className="form-msg err";e.textContent=t}};
+  root.querySelector("[data-gf-open]")?.addEventListener("click",()=>{const rec=letAll().find(x=>x.id===LS.edit);if(!rec)return;
+    const cur=readLetter(),base={...rec,...letAuto(rec)};if(Object.keys(cur).some(k=>String(cur[k]??"")!==String(base[k]??""))){gmsg("Əvvəlcə dəyişiklikləri «Yadda saxla» düyməsi ilə saxlayın, sonra formanı açın.");return}
+    const r=letBuild(rec);if(r.miss.length){gmsg("RB forması üçün bunları doldurub yadda saxlayın: "+r.miss.join(", ")+".");return}
+    gfOpenUrl(r.url);LS.pend=rec.id;render()});
+  root.querySelector("[data-gf-yes]")?.addEventListener("click",()=>{const rec=letAll().find(x=>x.id===LS.edit);LS.pend=false;if(rec)letPut({...rec,gfSent:todayISO()});commit("RB formasına göndərildi kimi işarələndi")});
+  root.querySelector("[data-gf-no]")?.addEventListener("click",()=>{LS.pend=false;render()});
+  root.querySelector("[data-gf-undo]")?.addEventListener("click",()=>{const rec=letAll().find(x=>x.id===LS.edit);if(!rec)return;const r={...rec};delete r.gfSent;letPut(r);commit("İşarə götürüldü")});
+  $("#lNone").addEventListener("click",()=>{const d=new Date(),m0=new Date(d.getFullYear(),d.getMonth()-1,1),iso=`${m0.getFullYear()}-${String(m0.getMonth()+1).padStart(2,"0")}-01`;
+    if(letAll().some(x=>(x.date||"")>=iso)&&!confirm("Bu və keçən ay qeydə alınmış sənədlər var. Yenə də «Xeyr» cavabı ilə açılsın?"))return;
+    gfOpenUrl(gfLink([[1261436718,gfCfg().kom],[541207369,"Xeyr"]]))});
+  $("#lst").addEventListener("change",e=>{LS.st=e.target.value;render()});$("#lRb").addEventListener("change",e=>{LS.rb=e.target.value;render()});
+  searchBox("#lq",v=>LS.q=v);
+  $("#lExp").onclick=()=>exportSheets([letSheet()],"Ərizə və məktublar");$("#lImp").onclick=letImport;
+  $("#gSave").onclick=()=>{DB.gf={kom:$("#g-kom").value,iqt:$("#g-iqt").value,ray:$("#g-ray").value,resp:normName($("#g-resp").value)};commit("RB ayarları yadda saxlandı")};
+  $$("#view tr[data-let]").forEach(t=>{const open=()=>{LS.edit=t.dataset.let;LS.confirm=null;LS.pend=false;render();if(innerWidth<860)$("#lentry").scrollIntoView({behavior:"smooth"})};t.addEventListener("click",open);t.addEventListener("keydown",e=>{if(e.key==="Enter")open()})})}
+
+const TABS=[["home","Ümumi"],["mem","Üzvlər"],["bodies","Komitə və komissiyalar"],["orgs","İlk təşkilatlar"],["contracts","Müqavilələr"],["events","Tədbirlər planı"],["prots","Protokollar"],["letters","Ərizə və məktublar"],["settings","Parametrlər"]];
 /* Alt bölmələr: səhifənin yuxarısında düymə kimi */
 const SUB={orgs:[["orgs","İlk təşkilatlar"],["chairs","İlk təşkilat sədrləri"],["dues","Maaş və 2%"]],mem:[["mem","Üzvlər"],["vet","Veteran, Qazi, Şəhid ailəsi"]],prots:[["prots","Protokollar"],["plens","Plenumlar"]],events:[["events","Tədbirlər planı"],["cal","İstehsalat təqvimi"]]};
 const PARENT={chairs:"orgs",dues:"orgs",vet:"mem",plens:"prots",cal:"events"};
@@ -397,13 +586,13 @@ function subNav(cnt){const g=SUB[PARENT[UI.tab]||UI.tab];if(!g)return"";
 function render(){
   document.documentElement.dataset.sec=PARENT[UI.tab]||UI.tab;
   $("#hdrOrg").textContent=DB.org||DEF_ORG;
-  const cnt={mem:active().length,bodies:DB.bodies.length,vet:active().filter(m=>statusParts(m.status).some(p=>!isChairSt(p))).length,chairs:active().filter(isOrgChair).length,orgs:DB.orgs.filter(orgActive).length,events:DB.events.length,prots:DB.prots.length,plens:DB.plens.length,contracts:DB.contracts.length};
+  const cnt={mem:active().length,bodies:DB.bodies.length,vet:active().filter(m=>statusParts(m.status).some(p=>!isChairSt(p))).length,chairs:active().filter(isOrgChair).length,orgs:DB.orgs.filter(orgActive).length,events:DB.events.length,prots:DB.prots.length,plens:DB.plens.length,contracts:DB.contracts.length,letters:(DB.letters||[]).filter(x=>x.status==="Baxılır").length};
   $("#tabs").innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" data-tab="${k}" aria-selected="${UI.tab===k||PARENT[UI.tab]===k}">${l}${cnt[k]?`<span class="n">${cnt[k]}</span>`:""}</button>`).join("");
   licBar();
   const v=$("#view");
-  const R={home:homeHTML,mem:memHTML,bodies:bodiesHTML,vet:vetHTML,orgs:()=>regHTML("orgs"),events:()=>regHTML("events"),prots:()=>regHTML("prots"),plens:()=>regHTML("plens"),contracts:()=>regHTML("contracts"),cal:calHTML,chairs:chairsHTML,dues:duesHTML,settings:settingsHTML}[UI.tab];
+  const R={home:homeHTML,mem:memHTML,bodies:bodiesHTML,vet:vetHTML,orgs:()=>regHTML("orgs"),events:()=>regHTML("events"),prots:()=>regHTML("prots"),plens:()=>regHTML("plens"),contracts:()=>regHTML("contracts"),cal:calHTML,chairs:chairsHTML,dues:duesHTML,letters:lettersHTML,settings:settingsHTML}[UI.tab];
   v.innerHTML=subNav(cnt)+R();
-  ({home:bindHome,mem:bindMem,bodies:bindBodies,vet:bindVet,orgs:()=>bindReg("orgs"),events:()=>bindReg("events"),prots:()=>bindReg("prots"),plens:()=>bindReg("plens"),contracts:()=>bindReg("contracts"),cal:bindCal,chairs:bindChairs,dues:bindDues,settings:bindSettings})[UI.tab]();
+  ({home:bindHome,mem:bindMem,bodies:bindBodies,vet:bindVet,orgs:()=>bindReg("orgs"),events:()=>bindReg("events"),prots:()=>bindReg("prots"),plens:()=>bindReg("plens"),contracts:()=>bindReg("contracts"),cal:bindCal,chairs:bindChairs,dues:bindDues,letters:bindLetters,settings:bindSettings})[UI.tab]();
   addPrintBtns()}
 /* lisenziya: qırmızı zolaq (yoxdur/bitib), sarı zolaq (30 gündən az qalıb), açılışda aktivləşdirmə pəncərəsi */
 const licDays=()=>LIC.until&&LIC.today?Math.round((Date.parse(LIC.until)-Date.parse(LIC.today))/864e5):null;
@@ -1043,7 +1232,7 @@ function settingsHTML(){const bi=HAS_API?window.api.backupInfo():null;
   <p class="mut" style="text-align:center">HİK-təşkilat 1.0.0 · yeniləmə ${UI_VER}${HAS_API&&window.api.uiInfo&&window.api.uiInfo().fromUpdate?" (yeniləmədən)":""} · AzerSoft LLC</p></div>`}
 function bindSettings(){
   $("#sForm").onsubmit=e=>{e.preventDefault();if(!guard())return;DB.org=normName($("#s-org").value)||DEF_ORG;DB.chair=normName($("#s-chair").value);commit("Yadda saxlandı")};
-  $("#allExp").onclick=()=>exportSheets([...DB.bodies.map(bodySheet),vetSheet(),memSheet(),regSheet("orgs"),chairSheet(),regSheet("events"),regSheet("prots"),regSheet("plens"),regSheet("contracts")],"Komissiyalar-Protokol");
+  $("#allExp").onclick=()=>exportSheets([...DB.bodies.map(bodySheet),vetSheet(),memSheet(),regSheet("orgs"),chairSheet(),regSheet("events"),regSheet("prots"),regSheet("plens"),regSheet("contracts"),letSheet()],"Komissiyalar-Protokol");
   bindMid($("#view"));
   $("#bkJson")?.addEventListener("click",async()=>{const d=todayISO();if(await window.api.saveFile(`HT_ehtiyat_${d}.json`,new TextEncoder().encode(JSON.stringify(DB)),"json"))toast("Ehtiyat nüsxə saxlanıldı")});
   $("#wbIn")?.addEventListener("click",()=>$("#wbFile").click());
