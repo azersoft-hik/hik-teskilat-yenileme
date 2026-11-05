@@ -1,17 +1,17 @@
 {
  "product": "hik-teskilat",
- "ui": 37,
+ "ui": 38,
  "minMain": 1,
  "files": [
   {
    "path": "index.html",
-   "size": 33273,
-   "sha256": "fff3285c795bd2c1c123130892d41d3c2c09ee24079dc57d23db7797463eccc4"
+   "size": 33485,
+   "sha256": "a20048ebb92188145d5f2d47774ae0bb0b75d3cdc7ee0d59c21d10f65654c793"
   },
   {
    "path": "app.js",
-   "size": 198849,
-   "sha256": "c0a8796439d5f827ce7475b49be3526b0c75c600e46a99a83e11b6962d2720a9"
+   "size": 214081,
+   "sha256": "1aa33a0d2a6f8df1a53a1f310694ebecde7d0e5c3b3656ce200f4b2462e651c6"
   },
   {
    "path": "autofill.js",

@@ -1,5 +1,5 @@
 "use strict";
-const UI_VER=37; /* ekran hissəsinin versiyası — hər yeniləmədə artırılır */
+const UI_VER=38; /* ekran hissəsinin versiyası — hər yeniləmədə artırılır */
 /* ================= HİK-təşkilat — Həmkarlar İttifaqı rayon komitəsinin təşkilati işi ================= */
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -47,7 +47,7 @@ const ORG_ST=["Fəaliyyətdədir","Qoşulacaq","Rayon komitəsi"];
 const isRK=o=>o.state==="Rayon komitəsi";
 const orgActive=o=>!isRK(o)&&(o.state||"Fəaliyyətdədir")!=="Qoşulacaq";
 const BODY_ORDER=["Rayon komitəsinin üzvləri","Rəyasət Heyəti (İcrayə komitəsi)","Təftiş komissiyası","Maddi yardım üzrə komissiya","Gender bərabərliyi komissiyası","Əməyin mühafizəsi komissiyası","Gənclərlə iş üzrə komissiya","Fərdi əmək mübahisələri üzrə komissiya","Mədəni-kütləvi işlər üzrə komissiya","Hüquq məsələləri üzrə komissiya"];
-let DB={v:1,org:DEF_ORG,chair:"",mem:[],bodies:[],orgs:[],events:[],prots:[],plens:[],contracts:[],letters:[]};
+let DB={v:1,org:DEF_ORG,chair:"",mem:[],bodies:[],orgs:[],events:[],evPlans:[],prots:[],plens:[],contracts:[],letters:[]};
 const UI={tab:"home",mem:{view:"in",org:"",st:"",g:"",q:"",sel:null,draft:null},body:{sel:null,person:null},vet:{},
   orgs:{sel:null,q:""},events:{sel:null,q:"",y:""},prots:{sel:null,q:"",y:""},plens:{sel:null,q:"",y:""},contracts:{sel:null,q:"",y:""}};
 const HAS_API=!!window.api;
@@ -636,7 +636,7 @@ function homeHTML(){
   const jub=A.filter(m=>m.birth&&[50,55,60,65,70,75,80].includes(Y-+m.birth.slice(0,4))).sort((a,b)=>a.birth.slice(5).localeCompare(b.birth.slice(5)));
   const retL=A.filter(m=>isRet(m.birth)).sort((a,b)=>a.birth.localeCompare(b.birth));
   const bday=A.filter(m=>m.birth&&m.birth.slice(5,7)===M).sort((a,b)=>a.birth.slice(8).localeCompare(b.birth.slice(8)));
-  const soon=DB.events.filter(e=>e.date>=today&&e.status!=="İcra olunub"&&e.status!=="Ləğv edilib").sort((a,b)=>a.date.localeCompare(b.date)).slice(0,6);
+  const soon=DB.events.filter(e=>!e.ongoing&&(evLate(e)||(evEnd(e)>=today&&e.status!=="İcra olunub"&&e.status!=="Ləğv edilib"))).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8);
   const ctWarn=DB.contracts.map(c=>({c,s:ctState(c)})).filter(x=>x.s.d!=null&&x.s.d<=60).sort((a,b)=>a.s.d-b.s.d);
   const inBodies=new Set();DB.bodies.forEach(b=>b.people.forEach(p=>inBodies.add(nkey(p.name))));
   /* yoxlama */
@@ -666,7 +666,7 @@ function homeHTML(){
       <div class="tbl-wrap scroll-y"><table class="reg"><thead><tr><th>S.A.A.</th><th class="num">Təvəllüd</th><th class="num">Yaş</th></tr></thead><tbody>${retL.map(m=>`<tr class="ret" data-gomem="${m.id}" tabindex="0"><td><span class="retn">${esc(m.name)}</span><div class="mut">${esc(orgName(m))}</div></td><td class="num retd">${dmy(m.birth)}</td><td class="num retd">${ageOf(m.birth)}</td></tr>`).join("")||`<tr><td colspan="3" class="mut">Yoxdur</td></tr>`}</tbody></table></div></section>
     <section class="card printable" data-ptitle="Bu ay ad günü olan üzvlər"><h2>Bu ay ad günləri <span class="badge">${bday.length}</span></h2>
       <div class="tbl-wrap scroll-y"><table class="reg"><thead><tr><th>S.A.A.</th><th class="num">Təvəllüd</th><th class="num">Yaş</th></tr></thead><tbody>${bday.map(pl).join("")||`<tr><td colspan="3" class="mut">Yoxdur</td></tr>`}</tbody></table></div></section>
-    <section class="card"><h2>Yaxın tədbirlər</h2>${soon.length?`<table class="reg"><tbody>${soon.map(e=>`<tr data-goev="${e.id}" tabindex="0"><td class="num">${dmy(e.date)}</td><td>${esc(e.title)}<div class="mut">${esc(e.resp||"")}</div></td></tr>`).join("")}</tbody></table>`:`<p class="mut">Planlaşdırılmış tədbir yoxdur. «Tədbirlər planı» bölməsində əlavə edin.</p>`}</section>
+    <section class="card"><h2>Yaxın tədbirlər</h2>${soon.length?`<table class="reg"><tbody>${soon.map(e=>`<tr data-goev="${e.id}" tabindex="0"><td class="num">${dmy(e.date)}</td><td>${esc(e.title)}<div class="mut">${esc(e.resp||"")}</div></td><td class="nowrap"><span class="st ${evLate(e)?"rej":"pend"}">${esc(evWhen(e))}</span></td></tr>`).join("")}</tbody></table>`:`<p class="mut">Planlaşdırılmış tədbir yoxdur. «Tədbirlər planı» bölməsində əlavə edin.</p>`}</section>
     <section class="card"><h2>Müqavilələr</h2>${ctWarn.length?`<table class="reg"><tbody>${ctWarn.map(({c,s})=>`<tr data-goct="${c.id}" tabindex="0"><td>${esc(c.type||"")}${c.no?" № "+esc(c.no):""}<div class="mut">${esc(c.org||c.party||"")}</div></td><td class="num nowrap">${dmy(c.dateTo)}<div><span class="st ${s.c}">${esc(s.t)}</span></div></td></tr>`).join("")}</tbody></table>`:`<p class="mut">${DB.contracts.length?`${DB.contracts.length} müqavilə; müddəti bitən və ya 60 gün ərzində bitəcək müqavilə yoxdur.`:"Müqavilə əlavə olunmayıb. «Müqavilələr» bölməsində kollektiv müqavilə və sazişləri faylları ilə birlikdə saxlaya bilərsiniz."}</p>`}</section>
     <section class="card"><h2>Məlumatların yoxlanması</h2>${chk.length?chk.map(([n,l,items])=>`<details class="chk"><summary><span class="st pend">${n}</span> ${l}</summary><ul>${items.slice(0,60).map(i=>`<li>${i}</li>`).join("")}${items.length>60?`<li>… və daha ${items.length-60}</li>`:""}</ul></details>`).join(""):`<p class="mut">Problem tapılmadı.</p>`}</section>
   </div>`}
@@ -1004,7 +1004,7 @@ const REG={
     text:o=>[o.name,orgChair(o),o.note].join(" ")},
   events:{title:"Tədbirlər planı",one:"Tədbir",sheet:"Tədbirlər Planı",year:"date",
     fields:[["date","Tarix *","date",1],["dateTo","Bitmə tarixi (çoxgünlükdürsə)","date"],["title","Tədbirin adı *","area",1],["place","Keçiriləcəyi yer"],["resp","Məsul şəxs","person"],["part","İştirakçılar (sayı və ya kimlər)"],["status","İcra vəziyyəti","select",0,"",EV_ST],["note","Qeyd / icra haqqında","area"]],
-    cols:[["Tarix",o=>`${dmy(o.date)}${o.dateTo?"<div class=mut>– "+dmy(o.dateTo)+"</div>":""}`,"num nowrap"],["Tədbir",o=>`${esc(o.title)}<div class="mut">${esc([o.place,o.resp].filter(Boolean).join(" · "))}</div>`],["Vəziyyət",o=>stBadge(o.status)],["Fayl",o=>fileBadge(o),"num"]],
+    cols:[["Tarix",o=>`${dmy(o.date)}${o.dateTo?"<div class=mut>– "+dmy(o.dateTo)+"</div>":""}`,"num nowrap"],["Tədbir",o=>`${esc(o.title)}<div class="mut">${esc([o.place,o.resp].filter(Boolean).join(" · "))}</div>`],["Vəziyyət",o=>stBadge(o.status)+evLateBadge(o)],["Fayl",o=>fileBadge(o),"num"]],
     xl:[["Tarix",o=>dmy(o.date)],["Bitmə tarixi",o=>dmy(o.dateTo)],["Tədbirin adı",o=>o.title],["Yer",o=>o.place],["Məsul şəxs",o=>o.resp],["İştirakçılar",o=>o.part],["İcra vəziyyəti",o=>o.status||"Planlaşdırılıb"],["Qeyd",o=>o.note],["Fayllar",o=>(o.files||[]).map(f=>f.name).join("; ")]],
     sort:(a,b)=>(a.date||"").localeCompare(b.date||""),text:o=>[o.title,o.place,o.resp,o.note,o.status].join(" ")},
   prots:{title:"Protokollar",one:"Protokol",sheet:"Protokollar",year:"date",
@@ -1065,7 +1065,7 @@ function regHTML(kind){const C=REG[kind],S=UI[kind],list=DB[kind];
       <div class="form-msg" id="rMsg"></div>
       <div class="form-actions"><button class="btn primary" type="submit">${ed?"Yadda saxla":"Əlavə et"}</button>${ed?`<button class="btn" type="button" id="rClose">Bağla</button><button class="btn ghost" type="button" id="rDel">Sil</button>`:""}</div></form></section>
   <section class="card printable" data-ptitle="${esc(C.title)}"><h2>${esc(C.title)}</h2>
-    <div class="reg-tools">${kind==="contracts"?`<button class="btn primary noweb" id="ctPdf" title="PDF, Word faylını seçin — yeni qeyd yaranır, xanalar fayldan doldurulur">📄 Fayldan yeni müqavilə</button>`:""}<button class="btn" id="rNew">+ Yeni ${esc(C.one.toLocaleLowerCase("az"))}</button>
+    <div class="reg-tools">${kind==="contracts"?`<button class="btn primary noweb" id="ctPdf" title="PDF, Word faylını seçin — yeni qeyd yaranır, xanalar fayldan doldurulur">📄 Fayldan yeni müqavilə</button>`:""}${kind==="events"?`<button class="btn primary noweb" id="evPlanImp" title="Word (.docx) və ya Excel faylındakı planı oxuyub tədbirlərə çevirir">📥 Planı fayldan yüklə</button>`:""}<button class="btn" id="rNew">+ Yeni ${esc(C.one.toLocaleLowerCase("az"))}</button>
       <button class="btn" id="rFiles" title="${ed?"Seçilmiş qeydə fayl əlavə et":"Formadakı yeni qeydi yadda saxlayıb fayl əlavə edir"}">📎 Fayl əlavə et${ed?": "+esc((t=>t.length>28?t.slice(0,27)+"…":t)(ed.no?"№ "+ed.no:ed.name||ed.title||dmy(ed.date))):""}</button>
       ${kind==="orgs"?`<button class="btn" id="oNewXl" title="Üzv siyahısı (Excel) ilə yeni ilk təşkilat yaratmaq">📥 Excel-dən yeni təşkilat</button><input type="file" id="oNewFile" accept=".xlsx,.xls" hidden>`:""}
       <button class="btn" id="rExp">Excel-ə çıxar</button></div>
@@ -1076,6 +1076,7 @@ function regHTML(kind){const C=REG[kind],S=UI[kind],list=DB[kind];
     <div class="tbl-wrap"><table class="reg${MAN?" dragt":""}"><thead><tr>${MAN?'<th class="drag-th"></th>':""}<th class="num">№</th>${C.cols.map(([h,,cls])=>`<th class="${cls||""}">${h}</th>`).join("")}</tr></thead><tbody>
     ${body&&C.totals?`</tbody><tfoot>${C.totals(L).map(r=>`<tr class="tot"><td></td><td>${esc(r[0])}</td>${r.slice(1).map(v=>`<td class="num">${v||""}</td>`).join("")}</tr>`).join("")}</tfoot><tbody>`:""}
     ${body||`<tr><td colspan="${C.cols.length+1+(MAN?1:0)}"><div class="empty"><b>Hələ qeyd yoxdur</b>Soldakı formadan əlavə edin. Hər qeydə fayl (PDF, Word, şəkil) əlavə etmək olar.</div></td></tr>`}</tbody></table></div>
+    ${kind==="events"?evPlansHTML():""}
     ${unmatched.length?`<details class="chk"><summary><span class="st pend">${unmatched.length}</span> üzv heç bir ilk təşkilata aid edilmədi</summary><ul>${[...new Set(unmatched.map(m=>m.unit))].map(u=>`<li>${esc(u)}</li>`).join("")}</ul><p class="mut">Uyğun təşkilatı açıb «Açar sözlər» xanasına bu bölmənin adından bir söz əlavə edin.</p></details>`:""}</section></div>`}
 function filesHTML(kind,rec){
   if(!rec)return`<div class="files empty-f">${HAS_API?`<button class="btn" type="button" id="fAddNew">+ Fayl əlavə et</button> <span class="mut">— qeyd avtomatik yadda saxlanılacaq</span>`:"Fayl əlavə etmək yalnız proqramda (EXE) işləyir."}</div>`;
@@ -1147,6 +1148,7 @@ function bindReg(kind){const C=REG[kind],S=UI[kind];
     if(!HAS_API){toast("Fayl əlavə etmək yalnız proqramda (EXE) işləyir");return}
     if(!r){saveAndAdd();return}$("#fAdd").click()};
   if(kind==="orgs"){$("#oNewXl")?.addEventListener("click",()=>$("#oNewFile").click());$("#oNewFile")?.addEventListener("change",e=>{const f=e.target.files[0];e.target.value="";importOrgFile(f,null)})}
+  if(kind==="events")bindEvPlans();
   const rec=S.sel&&DB[kind].find(x=>x.id===S.sel);
   if(kind==="orgs")bindOrgImport(rec||null);if(!rec)return;
   /* fayl əlavə etməzdən əvvəl formada yazılanları yadda saxlayırıq ki, itməsin */
@@ -1353,6 +1355,139 @@ function printDoc(title){document.body.classList.add("docprint");const t=documen
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#docView"))closeDoc()});
 document.addEventListener("click",e=>{const d=e.target.closest("[data-docview]");if(d){e.preventDefault();const[k,id]=d.dataset.docview.split(":");docView(k,id)}});
 document.addEventListener("click",e=>{const t=e.target.closest(".tab,.subtab");if(t){UI.tab=t.dataset.tab;render();window.scrollTo(0,0)}});
+/* ================= Tədbirlər planı: fayldan yükləmə və xatırlatma (yeniləmə 38) =================
+   Word (.docx) və ya Excel faylındakı cədvəl oxunur; «ay» kimi yazılmış vaxt istehsalat təqviminə görə tarixə çevrilir. */
+const EV_MON_RE=new RegExp(`(?<!\\p{L})(${MONTHS.join("|")})`,"gu");
+const evDiff=(a,b)=>Math.round((Date.parse(a+"T00:00:00Z")-Date.parse(b+"T00:00:00Z"))/864e5);
+const evEnd=o=>o.dateTo||o.date||"";
+const evOpen=o=>(o.status||"Planlaşdırılıb")==="Planlaşdırılıb";
+const evLate=o=>evOpen(o)&&!!evEnd(o)&&evEnd(o)<todayISO();
+const evLateBadge=o=>evLate(o)?` <span class="st rej">Gecikib</span>`:"";
+function evWhen(o){const t=todayISO();if(evLate(o))return"gecikib";if(o.date<=t&&t<=evEnd(o))return o.date===t?"bu gün":"davam edir";const n=evDiff(o.date,t);return n===1?"sabah":`${n} gün sonra`}
+const evDay=(y,m,d)=>`${y}-${pad2(m+1)}-${pad2(d)}`;
+const evLast=(y,m)=>new Date(Date.UTC(y,m+1,0)).toISOString().slice(0,10);
+function evFirstWork(y,m){const map=CAL_YEARS[y]?calDays(y):null;
+  for(let d=1;d<=28;d++){const iso=evDay(y,m,d),x=map&&map.get(iso);if(x?(x.t==="work"||x.t==="short"):((new Date(Date.UTC(y,m,d)).getUTCDay()+6)%7<5))return iso}
+  return evDay(y,m,1)}
+/* vaxt yazısını tarixə çevirir: bir sətirdən bir neçə tədbir də yarana bilər (məs. «Rübdə bir dəfə») */
+function evParseTime(raw,y){
+  if(typeof raw==="number"){const d=xlDate(raw);return d?[{date:d}]:[]}
+  const src=String(raw||"").replace(/[\s ]+/g," ").trim();if(!src)return[];
+  const s=src.toLocaleLowerCase("az");
+  const nums=src.match(/\d{1,2}[.\/]\d{1,2}[.\/]\d{2,4}|\d{4}-\d{2}-\d{2}/g);
+  if(nums){const a=nums.map(xlDate).filter(Boolean);if(a.length)return[{date:a[0],...(a[1]?{dateTo:a[1]}:{})}]}
+  if(/daimi|il boyu|il ərzində|daxil olduqca|mütəmadi|ehtiyac/.test(s))return[{date:evFirstWork(y,0),dateTo:`${y}-12-31`,ongoing:true}];
+  if(/rübdə|hər rüb/.test(s))return["I","II","III","IV"].map((q,i)=>({date:evFirstWork(y,i*3),dateTo:evLast(y,i*3+2),suffix:`${q} rüb`}));
+  if(/ayda bir|ayda 1|hər ay/.test(s))return MONTHS.map((n,i)=>({date:evFirstWork(y,i),dateTo:evLast(y,i),suffix:n}));
+  const mons=[];let m;EV_MON_RE.lastIndex=0;while((m=EV_MON_RE.exec(s)))mons.push({i:MONTHS.indexOf(m[1]),at:m.index});
+  const dayBefore=x=>{const t=s.slice(0,x.at).match(/(\d{1,2})\s*(?:-?\s*[\p{L}]{1,3})?\s*$/u);return t?+t[1]:0};
+  if(mons.length>=2){const a=mons[0],b=mons[mons.length-1],da=dayBefore(a),db=dayBefore(b);
+    return[{date:da?evDay(y,a.i,da):evFirstWork(y,a.i),dateTo:db?evDay(y,b.i,db):evLast(y,b.i)}]}
+  if(mons.length===1){const a=mons[0],r=s.slice(0,a.at).match(/(\d{1,2})\s*[-–—]\s*(\d{1,2})\s*$/);
+    if(r)return[{date:evDay(y,a.i,+r[1]),dateTo:evDay(y,a.i,+r[2])}];
+    const d=dayBefore(a);if(d&&d<=31)return[{date:evDay(y,a.i,d)}];
+    return[{date:evFirstWork(y,a.i),dateTo:evLast(y,a.i)}]}
+  const q=src.match(/(?<![\p{L}])(IV|III|II|I)\s*rüb/u);if(q){const i=["I","II","III","IV"].indexOf(q[1]);return[{date:evFirstWork(y,i*3),dateTo:evLast(y,i*3+2)}]}
+  return[]}
+/* faylı cədvəllərə çevirir */
+function evTables(bytes,name){const ext=(String(name).split(".").pop()||"").toLowerCase();
+  if(ext==="xlsx"||ext==="xls"){const wb=XLSX.read(bytes,{type:"array",cellDates:false});
+    const T=wb.SheetNames.map(n=>XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:""}));
+    return{tables:T,text:T.flat(2).filter(v=>typeof v==="string").slice(0,12).join(" ")}}
+  if(ext==="docx"){const z=XLSX.CFB.read(bytes,{type:"array"});const f=XLSX.CFB.find(z,"word/document.xml")||XLSX.CFB.find(z,"/word/document.xml");if(!f)return null;
+    const xml=new TextDecoder("utf-8").decode(f.content);
+    const T=(xml.match(/<w:tbl>[\s\S]*?<\/w:tbl>/g)||[]).map(t=>(t.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g)||[]).map(r=>(r.match(/<w:tc>[\s\S]*?<\/w:tc>/g)||[]).map(c=>xmlText(c).trim())));
+    return{tables:T,text:xmlText(xml.slice(0,xml.indexOf("<w:tbl>")>0?xml.indexOf("<w:tbl>"):xml.length)).slice(0,600)}}
+  return null}
+function evYearOf(text,name){const t=`${text||""} ${name||""}`;const m=t.match(/(20\d\d)\s*-?\s*c?[ıiuü]?\s*il\s*üçün/i)||t.match(/(20\d\d)/);return m?+m[1]:+todayISO().slice(0,4)}
+/* cədvəldən xam sətirlər */
+function evRawRows(tables){const out=[];
+  for(const T of tables){const hi=T.findIndex(r=>r.some(c=>/tədbir/i.test(String(c).toLocaleLowerCase("az"))));if(hi<0)continue;
+    const H=T[hi].map(c=>String(c).toLocaleLowerCase("az").trim());const col=re=>H.findIndex(h=>re.test(h));
+    const end=col(/bitmə/),title=col(/tədbir/);let time=H.findIndex((h,i)=>i!==end&&/vaxt|tarix|müddət/.test(h));
+    const resp=col(/məsul|icraçı/),place=H.findIndex(h=>/(^|\s)yer/.test(h)),part=col(/iştirak/),note=col(/qeyd/),st=col(/vəziyyət/);
+    if(title<0||time<0)continue;
+    for(const r of T.slice(hi+1)){const tt=String(r[title]??"").replace(/\s+/g," ").trim();if(!tt||/^cəmi$/i.test(tt))continue;
+      const g=i=>i<0?"":String(r[i]??"").replace(/\s+/g," ").trim();
+      out.push({title:tt,time:r[time],end:end<0?"":r[end],resp:g(resp),place:g(place),part:g(part),note:g(note),status:EV_ST.includes(g(st))?g(st):""})}}
+  return out}
+function evBuildRows(raw,y){const out=[];
+  for(const r of raw){const P=evParseTime(r.time,y);
+    if(!P.length){out.push({...r,date:"",dateTo:"",on:true,bad:true,timeTxt:String(r.time??"")});continue}
+    for(const p of P){const dateTo=p.dateTo||(r.end!==""?xlDate(r.end):"");const title=p.suffix?`${r.title} (${p.suffix})`:r.title;
+      const dup=DB.events.some(e=>e.date===p.date&&lc(e.title)===lc(title));
+      out.push({...r,title,date:p.date,dateTo:dateTo||"",ongoing:!!p.ongoing,on:!dup,dup,timeTxt:String(r.time??"")})}}
+  return out}
+/* yoxlama pəncərəsi: heç nə yoxlanmadan yazılmır */
+function evPreview(fl,parsed){let y=evYearOf(parsed.text,fl.name);const raw=evRawRows(parsed.tables);let rows=evBuildRows(raw,y);
+  const md=document.createElement("div");md.className="lic-modal";document.body.append(md);
+  const close=()=>md.remove();
+  const paint=()=>{const n=rows.filter(r=>r.on).length;
+    md.innerHTML=`<div class="lic-box ev-box" role="dialog" aria-modal="true"><h2>Planı yoxlayın</h2>
+      <p class="mut">«${esc(fl.name)}»: <b>${rows.length}</b> tədbir tapıldı. Vaxtı «ay» kimi yazılanlar həmin ayın ilk iş gününə, ay sonuna qədər qoyulub. Tarixləri burada dəyişə bilərsiniz.</p>
+      <div class="fld"><label for="evY">İl</label><input id="evY" type="number" min="2000" max="2100" value="${y}" style="width:110px"></div>
+      <div class="tbl-wrap ev-scroll"><table class="reg"><thead><tr><th></th><th>Fayldakı vaxt</th><th>Tarix</th><th>Bitmə</th><th>Tədbir</th><th>Məsul</th></tr></thead><tbody>
+      ${rows.map((r,i)=>`<tr><td><input type="checkbox" data-on="${i}"${r.on?" checked":""} aria-label="Yüklə"></td><td class="nowrap">${esc(r.timeTxt)}${r.bad?' <span class="st rej">tarix yazın</span>':""}${r.dup?' <span class="st info">artıq var</span>':""}</td>
+        <td><input type="date" data-d="${i}" value="${esc(r.date)}"></td><td><input type="date" data-e="${i}" value="${esc(r.dateTo)}"></td><td>${esc(r.title)}</td><td>${esc(r.resp)}</td></tr>`).join("")}</tbody></table></div>
+      <div class="form-msg" id="evMsg"></div>
+      <div class="form-actions"><button class="btn primary" type="button" id="evOk">Yüklə (${n})</button><button class="btn" type="button" id="evNo">Ləğv et</button></div></div>`;
+    md.querySelector("#evY").onchange=e=>{const v=+e.target.value;if(v>=2000&&v<=2100){y=v;rows=evBuildRows(raw,y);paint()}};
+    md.querySelectorAll("[data-on]").forEach(c=>c.onchange=()=>{rows[+c.dataset.on].on=c.checked;md.querySelector("#evOk").textContent=`Yüklə (${rows.filter(r=>r.on).length})`});
+    md.querySelectorAll("[data-d]").forEach(c=>c.onchange=()=>{const r=rows[+c.dataset.d];r.date=c.value;r.bad=false});
+    md.querySelectorAll("[data-e]").forEach(c=>c.onchange=()=>{rows[+c.dataset.e].dateTo=c.value});
+    md.querySelector("#evNo").onclick=async()=>{close();await window.api.fileDel(fl.rel);toast("Ləğv edildi, heç nə yazılmadı")};
+    md.querySelector("#evOk").onclick=()=>{const L=rows.filter(r=>r.on),msg=md.querySelector("#evMsg");
+      if(!L.length){msg.className="form-msg err";msg.textContent="Heç bir tədbir seçilməyib.";return}
+      const lack=L.filter(r=>!r.date);if(lack.length){msg.className="form-msg err";msg.textContent=`${lack.length} tədbirin tarixi yoxdur: tarix yazın və ya işarəni götürün.`;return}
+      if(L.some(r=>r.dateTo&&r.dateTo<r.date)){msg.className="form-msg err";msg.textContent="Bitmə tarixi başlanğıcdan əvvəl ola bilməz.";return}
+      if(!guard())return;const planId=fl.planId;
+      for(const r of L)DB.events.push({id:newId(),date:r.date,dateTo:r.dateTo||"",title:r.title,place:r.place,resp:r.resp,part:r.part,status:r.status||"Planlaşdırılıb",note:r.note,files:[],planId,...(r.ongoing?{ongoing:true}:{})});
+      DB.evPlans=[...(DB.evPlans||[]),{id:planId,name:fl.name,rel:fl.rel,size:fl.size,added:fl.added,year:y,n:L.length}];
+      UI.events.y=String(y);UI.events.sel=null;close();commit(`${L.length} tədbir yükləndi`)}};
+  paint()}
+async function evImport(){if(!guard())return;if(!HAS_API){toast("Bu, yalnız proqramda (EXE) işləyir");return}
+  const planId="plan"+newId();const got=await window.api.filesAdd("events",planId);if(!got||!got.length)return;
+  const[fl,...rest]=got;for(const x of rest)await window.api.fileDel(x.rel);fl.planId=planId;
+  const fail=async t=>{await window.api.fileDel(fl.rel);alert(t)};
+  const ext=(fl.name.split(".").pop()||"").toLowerCase();if(!["docx","xlsx","xls"].includes(ext)){await fail("Plan Word (.docx) və ya Excel (.xlsx, .xls) faylı olmalıdır.\nKöhnə .doc faylını Word-də .docx kimi saxlayın.");return}
+  let parsed=null;try{const raw=await window.api.fileRead(fl.rel);if(raw)parsed=evTables(raw instanceof Uint8Array?raw:new Uint8Array(raw),fl.name)}catch(e){}
+  if(!parsed){await fail("Fayl oxunmadı.");return}
+  if(!evRawRows(parsed.tables).length){await fail("Faylda «Tədbir» və «Vaxt» (və ya «Tarix») sütunlu cədvəl tapılmadı.");return}
+  evPreview(fl,parsed)}
+function evPlansHTML(){const P=DB.evPlans||[];if(!P.length)return"";
+  return`<div class="ev-plans noweb"><h3>Yüklənmiş plan faylları</h3>${P.map(p=>`<div class="file"><span class="fn" title="${esc(p.name)}">${esc(p.name)}</span><span class="mut">${p.year} · ${p.n} tədbir · ${dmy((p.added||"").slice(0,10))}</span><span class="fa"><button class="btn ghost sm" type="button" data-popen="${esc(p.id)}">Aç</button><button class="btn ghost sm" type="button" data-pdel="${esc(p.id)}">Sil</button></span></div>`).join("")}</div>`}
+function evPlanDelete(p){const own=DB.events.filter(e=>e.planId===p.id),keep=own.filter(e=>e.status==="İcra olunub"),rm=own.filter(e=>e.status!=="İcra olunub");
+  const md=document.createElement("div");md.className="lic-modal";
+  md.innerHTML=`<div class="lic-box" role="dialog" aria-modal="true"><h2>Plan faylını sil</h2><p>«${esc(p.name)}» kompüterdən birdəfəlik silinəcək.</p>
+    <p class="mut">Bu fayldan yüklənmiş ${own.length} tədbir var${keep.length?`; ${keep.length} icra olunmuş tədbir hər halda saxlanılır`:""}.</p>
+    <div class="form-actions"><button class="btn" type="button" id="pdF">Yalnız faylı sil</button>${rm.length?`<button class="btn ghost" type="button" id="pdA">Faylı və ${rm.length} tədbiri sil</button>`:""}<button class="btn" type="button" id="pdN">Ləğv et</button></div></div>`;
+  document.body.append(md);md.querySelector("#pdN").onclick=()=>md.remove();
+  const run=async all=>{md.remove();if(!guard())return;await window.api.fileDel(p.rel);
+    if(all){for(const e of rm)for(const fl of e.files||[])await window.api.fileDel(fl.rel);const ids=new Set(rm.map(e=>e.id));DB.events=DB.events.filter(e=>!ids.has(e.id))}
+    for(const e of DB.events)if(e.planId===p.id)delete e.planId;
+    DB.evPlans=(DB.evPlans||[]).filter(x=>x!==p);UI.events.sel=null;commit(all?`Fayl və ${rm.length} tədbir silindi`:"Fayl silindi, tədbirlər qaldı")};
+  md.querySelector("#pdF").onclick=()=>run(false);md.querySelector("#pdA")?.addEventListener("click",()=>run(true))}
+function bindEvPlans(){$("#evPlanImp")?.addEventListener("click",evImport);
+  $$("[data-popen]").forEach(b=>b.onclick=async()=>{const p=(DB.evPlans||[]).find(x=>x.id===b.dataset.popen);if(!p)return;const r=await window.api?.fileOpen(p.rel);if(r)toast(r)});
+  $$("[data-pdel]").forEach(b=>b.onclick=()=>{const p=(DB.evPlans||[]).find(x=>x.id===b.dataset.pdel);if(p)evPlanDelete(p)})}
+/* Xatırlatma: tədbirdən 7 gün və 1 gün əvvəl, gecikəndə; hər mərhələ bir dəfə göstərilir. Kompüter həmin gün sönülü olsa da açılanda çıxır. */
+function evAlerts(){let seen={};try{seen=JSON.parse(localStorage.getItem("ht_ev_seen")||"{}")}catch(e){}
+  const t=todayISO(),L=[];
+  for(const e of DB.events){if(!evOpen(e)||!e.date)continue;let st="";
+    if(evLate(e))st="L";else if(!e.ongoing&&e.date>=t){const n=evDiff(e.date,t);st=n<=1?"1":n<=7?"7":""}
+    if(st&&seen[e.id]!==st)L.push({e,st})}
+  return{L:L.sort((a,b)=>a.e.date.localeCompare(b.e.date)),seen}}
+function evAlertDialog(){if($("#licModal")||$(".lic-modal")||!licOk())return;const{L,seen}=evAlerts();if(!L.length)return;
+  const md=document.createElement("div");md.className="lic-modal";
+  const mark=()=>{for(const x of L)seen[x.e.id]=x.st;try{localStorage.setItem("ht_ev_seen",JSON.stringify(seen))}catch(e){}};
+  md.innerHTML=`<div class="lic-box ev-box" role="dialog" aria-modal="true"><h2>Tədbir xatırlatması</h2><div class="tbl-wrap ev-scroll"><table class="reg"><tbody>
+    ${L.map(({e})=>`<tr data-ar="${e.id}"><td class="num nowrap">${dmy(e.date)}</td><td>${esc(e.title)}<div class="mut">${esc(e.resp||"")}</div></td><td class="nowrap"><span class="st ${evLate(e)?"rej":"pend"}">${esc(evWhen(e))}</span></td><td class="nowrap"><button class="btn ghost sm" type="button" data-agoto="${e.id}">Aç</button> <button class="btn ghost sm" type="button" data-adone="${e.id}">İcra olundu</button></td></tr>`).join("")}</tbody></table></div>
+    <div class="form-actions"><button class="btn primary" type="button" id="aClose">Bağla</button></div></div>`;
+  document.body.append(md);const shut=()=>{mark();md.remove()};md.querySelector("#aClose").onclick=shut;
+  md.querySelectorAll("[data-agoto]").forEach(b=>b.onclick=()=>{shut();UI.tab="events";UI.events.sel=b.dataset.agoto;render()});
+  md.querySelectorAll("[data-adone]").forEach(b=>b.onclick=()=>{const e=DB.events.find(x=>x.id===b.dataset.adone);if(!e||!guard())return;e.status="İcra olunub";persist();b.closest("tr").remove();
+    if(!md.querySelector("[data-ar]")){shut()}render()})}
+setTimeout(evAlertDialog,1500);
 load();render();
 /* yeniləmə hazır olanda zolaq göstərilir; düymə ilə proqram bağlanmadan yenilənir (yadda saxlanmamış forma itə bilər) */
 if(HAS_API&&window.api.onUiUpdated)window.api.onUiUpdated(v=>{let b=$("#updBar");if(!b){b=document.createElement("div");b.id="updBar";b.className="upd-bar";b.style.cssText="position:sticky;top:0;z-index:70;background:#B45309;color:#fff;border-bottom:0;padding:10px 14px;font-size:15px;font-weight:600;box-shadow:0 3px 12px rgba(0,0,0,.3)";document.body.prepend(b)}
